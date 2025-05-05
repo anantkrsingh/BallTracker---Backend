@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #messages {
+            height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+        }
+        #messageInput {
+            width: 70%;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Demo</h1>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        let ws;
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:3000');
+
+            ws.onopen = () => {
+                addMessage('Connected to WebSocket server');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addMessage(data.message);
+            };
+
+            ws.onclose = () => {
+                addMessage('Disconnected from WebSocket server');
+                setTimeout(connect, 1000);
+            };
+        }
+
+        function addMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = messageInput.value;
+            if (message && ws.readyState === WebSocket.OPEN) {
+                ws.send(message);
+                messageInput.value = '';
+            }
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        connect();
+    </script>
+</body>
+</html> 
