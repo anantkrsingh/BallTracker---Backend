@@ -1,10 +1,13 @@
 const { verifyToken } = require('../utils/verifier');
 const redisClient = require('../redis');
+const startDataFetching = require('../loopers/homepage');
 
 const connectedUsers = new Map();
 const rooms = new Map();
 
 const setupWebSocketEvents = (wss) => {
+    startDataFetching(wss);
+
     wss.on('connection', (ws, req) => {
         console.log('New client connected');
         let currentUser = null;
@@ -23,10 +26,16 @@ const setupWebSocketEvents = (wss) => {
                             currentUser = token;
                             connectedUsers.set(token, ws);
                             const homepage = await redisClient.get('homepage');
+                            const series = await redisClient.get('series');
                             ws.send(JSON.stringify({
                                 type: 'auth_success',
                                 message: 'Authentication successful',
                                 homepage: homepage
+                            }));
+                            ws.send(JSON.stringify({
+                                type: 'series_list',
+                                message: 'Series fetched successfully',
+                                series: series
                             }));
                         } else {
                             ws.send(JSON.stringify({
@@ -79,6 +88,10 @@ const setupWebSocketEvents = (wss) => {
         });
     });
 };
+
+// setInterval(() => {
+// console.log(connectedUsers.size)
+// }, 100);
 
 
 
