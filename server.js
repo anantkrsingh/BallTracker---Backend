@@ -13,9 +13,6 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-
-
-
 mongoose.connect('mongodb://localhost:27017/ballt', {
     useNewUrlParser: true,
     useUnifiedTopology: true

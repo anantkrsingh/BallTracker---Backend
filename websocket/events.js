@@ -1,6 +1,7 @@
 const { verifyToken } = require("../utils/verifier");
 const redisClient = require("../redis");
 const startDataFetching = require("../loopers/homepage");
+const { getLiveMatch } = require("../loopers/live");
 
 const connectedUsers = new Map();
 const rooms = new Map();
@@ -61,6 +62,48 @@ const setupWebSocketEvents = (wss) => {
             ws.close();
           }
         }
+
+
+        if (
+          data.type === "join_room" &&
+
+          data.token
+
+        ) {
+          try {
+            const { matchId } = data;
+
+            if (!rooms.has(matchId)) {
+              rooms.set(matchId, []);
+            }
+            if (!rooms.get(matchId).includes(ws)) {
+              rooms.get(matchId).push(ws);
+            }
+            const cacheData = await redisClient.get(matchId);
+            if (!cacheData) {
+              const data = await getLiveMatch(matchId)
+              ws.send(
+                JSON.stringify({
+                  type: "live_match",
+                  message: "Live match data fetched successfully",
+                  data: data,
+                })
+              );
+            } else {
+              ws.send(
+                JSON.stringify({
+                  type: "live_match",
+                  message: "Live match data fetched successfully",
+                  data: JSON.parse(cacheData),
+                })
+              );
+            }
+
+          } catch (error) {
+            console.log(error)
+          }
+        }
+
       } catch (error) {
         console.error("Error processing message:", error);
         ws.send(
