@@ -28,6 +28,7 @@ app.use('/api/config', configRouter);
 app.use("/api/auth", (req, res) => {
     const appSig = req.headers['x-app-signature'];
 
+
     if (!appSig || appSig !== process.env.APP_SHA) {
         return res.status(401).json({ error: "Unauthorized" });
     }

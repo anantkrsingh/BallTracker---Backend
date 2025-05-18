@@ -47,7 +47,7 @@ const getHomepage = async () => {
     }
     try {
         const homepage = await redisClient.get('homepage');
-        const response = await axios.get(`${API_URL}homeList/${API_KEY}`);
+        const response = await axios.get(`${API_URL}homeList${API_KEY}`);
         console.log("Got", response.data.data.length, "items on homepage");
 
         if (homepage) {
@@ -70,7 +70,7 @@ const getSeries = async () => {
     }
     try {
         const series = await redisClient.get('series');
-        const response = await axios.get(`${API_URL}seriesList/${API_KEY}`);
+        const response = await axios.get(`${API_URL}seriesList${API_KEY}`);
         console.log("Got", response.data.data.length, "items on series");
 
         if (series) {
