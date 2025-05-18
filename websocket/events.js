@@ -27,7 +27,6 @@ const setupWebSocketEvents = (wss) => {
         if (data.type === "auth" && data.token) {
           try {
             const token = verifyToken(data.token);
-
             if (token) {
               currentUser = token;
               connectedUsers.set(token, ws);

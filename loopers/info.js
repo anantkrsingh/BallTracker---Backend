@@ -1,7 +1,6 @@
 const axios = require("axios");
 const Config = require("../models/config");
 const redisClient = require("../redis");
-const WebSocket = require("ws");
 const FormData = require("form-data");
 
 let API_URL;
@@ -10,6 +9,7 @@ let API_KEY;
 const getConfig = async () => {
   try {
     const config = await Config.findOne({});
+    console.log(config);
     API_URL = config.base_url;
     API_KEY = config.a_api_key;
   } catch (error) {
