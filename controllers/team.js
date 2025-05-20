@@ -86,15 +86,16 @@ async function getPaginatedTeams(req, res) {
       .limit(limit)
       .sort({ updated_at: -1 });
 
-    const total = await Team.countDocuments();
-    await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
-
-    res.json({
+      const response = {
       page,
       perPage: limit,
       total,
       data: teams,
-    });
+    };
+    const total = await Team.countDocuments();
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
+
+    res.json(response);
   } catch (err) {
     console.error("Error fetching teams:", err.message);
     res.status(500).json({ error: "Internal server error" });
