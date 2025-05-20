@@ -57,7 +57,30 @@ const insertTeam = async (req, res) => {
         console.error('Error saving teams:', error);
     }
 }
+async function getPaginatedTeams(req, res) {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 10;
 
+  try {
+    const teams = await Team.find()
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .sort({ updated_at: -1 });
+
+    const total = await Team.countDocuments();
+
+    res.json({
+      page,
+      perPage: limit,
+      total,
+      data: teams
+    });
+  } catch (err) {
+    console.error('Error fetching teams:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
 module.exports = {
-    insertTeam
+    insertTeam,
+    getPaginatedTeams
 }

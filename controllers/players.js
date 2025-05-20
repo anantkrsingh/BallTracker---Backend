@@ -44,4 +44,34 @@ async function insertPlayers() {
 }
 
 
+async function getPaginatedPlayers(req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+
+    try {
+        const players = await Player.find()
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .sort({ updated_at: -1 });
+
+        const total = await Player.countDocuments();
+
+        res.json({
+            page,
+            perPage: limit,
+            total,
+            data: players
+        });
+    } catch (err) {
+        console.error('Error fetching players:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+module.exports = {
+    getPaginatedPlayers,
+}
+
+
+
 // insertPlayers();
