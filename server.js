@@ -4,22 +4,24 @@ const WebSocket = require("ws");
 const mongoose = require("mongoose");
 const configRouter = require("./routes/config");
 const teamsRouter = require("./routes/team");
+const playersRouter = require("./routes/player");
 const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
 require("./redis");
-require("./controllers/players")
+require("./controllers/players");
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(express.static("public"));
 
 app.use("/api/config", configRouter);
-app.use("/api/teams", teamsRouter)
+app.use("/api/teams", teamsRouter);
+app.use("/api/players", playersRouter);
 
 app.use("/api/auth", (req, res) => {
   const appSig = req.headers["x-app-signature"];
