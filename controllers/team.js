@@ -1,4 +1,5 @@
 const Team = require("../models/team");
+const redisClient = require("../redis");
 
 function parseDateOrNull(dateString) {
   return !dateString || dateString === "0000-00-00"
@@ -58,12 +59,22 @@ const insertTeam = async (req, res) => {
 };
 async function getPaginatedTeams(req, res) {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;;
+  const limit = parseInt(req.query.limit) || 10;
   const fields = req.query.fields
     ? req.query.fields.split(",").join(" ")
     : null;
 
   try {
+    const cacheKey = `teams:page=${page}:limit=${limit}:fields=${
+      fields || "all"
+    }`;
+
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      return res.json(JSON.parse(cachedData));
+    }
+
     const query = Team.find();
 
     if (fields) {
@@ -76,6 +87,7 @@ async function getPaginatedTeams(req, res) {
       .sort({ updated_at: -1 });
 
     const total = await Team.countDocuments();
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
 
     res.json({
       page,
