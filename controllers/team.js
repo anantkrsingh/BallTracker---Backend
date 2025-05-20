@@ -58,7 +58,7 @@ const insertTeam = async (req, res) => {
 };
 async function getPaginatedTeams(req, res) {
   const page = parseInt(req.query.page) || 1;
-  const limit = 10;
+  const limit = parseInt(req.query.limit) || 10;;
   const fields = req.query.fields
     ? req.query.fields.split(",").join(" ")
     : null;
