@@ -82,7 +82,7 @@ async function getPlayerById(req, res) {
   const { playerId } = req.params;
 
   try {
-    const player = await Player.findById(playerId);
+    const player = await Player.findOne({ id: playerId });
 
     if (!player) {
       return res.status(404).json({ error: "Player not found" });
