@@ -86,13 +86,13 @@ async function getPaginatedTeams(req, res) {
       .limit(limit)
       .sort({ updated_at: -1 });
 
-      const response = {
+    const total = await Team.countDocuments();
+    const response = {
       page,
       perPage: limit,
       total,
       data: teams,
     };
-    const total = await Team.countDocuments();
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
 
     res.json(response);
