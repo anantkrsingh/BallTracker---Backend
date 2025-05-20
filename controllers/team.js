@@ -106,13 +106,13 @@ async function getTeamById(req, res) {
   const { teamId } = req.params;
 
   try {
-    const team = await Team.findById(teamId);
+    const team = await Team.findOne({id:teamId});
 
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
     }
 
-    res.json(team);
+    res.json({data: team});
   } catch (err) {
     console.error("Error fetching team by ID:", err.message);
     res.status(500).json({ error: "Internal server error" });

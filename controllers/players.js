@@ -88,7 +88,7 @@ async function getPlayerById(req, res) {
       return res.status(404).json({ error: "Player not found" });
     }
 
-    res.json(player);
+    res.json({ data: player });
   } catch (err) {
     console.error("Error fetching player by ID:", err.message);
     res.status(500).json({ error: "Internal server error" });
