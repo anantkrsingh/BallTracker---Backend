@@ -37,10 +37,7 @@ const notifyClients = (type, data) => {
   }
 };
 
-const notifyClientsInRoom = (room, type, data) => {
-  try {
-  } catch (error) {}
-};
+
 
 const getHomepage = async () => {
   if (!API_URL || !API_KEY) {

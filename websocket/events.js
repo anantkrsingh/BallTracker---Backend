@@ -40,6 +40,7 @@ const setupWebSocketEvents = (wss) => {
               } else {
                 config = JSON.parse(config);
               }
+              console.log(config)
               ws.send(
                 JSON.stringify({
                   type: "config",

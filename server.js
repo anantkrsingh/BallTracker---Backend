@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const configRouter = require("./routes/config");
 const teamsRouter = require("./routes/team");
 const playersRouter = require("./routes/player");
+const redisClient = require("./redis");
 const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -23,8 +24,10 @@ app.use("/api/config", configRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/players", playersRouter);
 
-app.use("/api/auth", (req, res) => {
+app.use("/api/auth", async (req, res) => {
   const appSig = req.headers["x-app-signature"];
+
+  console.log(appSig)
 
   if (!appSig || appSig !== process.env.APP_SHA) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -32,9 +35,13 @@ app.use("/api/auth", (req, res) => {
 
   const secret = process.env.APP_SHA;
 
+
   const token = jwt.sign({ token: uuidv4() }, secret, { expiresIn: "2h" });
 
-  return res.status(200).json({ token });
+  const homepage = await redisClient.get("homepage");
+  const series = await redisClient.get("series");
+
+  return res.status(200).json({ token, homepage, series });
 });
 
 app.get("/", (req, res) => {
