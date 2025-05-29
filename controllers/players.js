@@ -8,12 +8,20 @@ function parseDateOrNull(dateStr) {
 async function getPaginatedPlayers(req, res) {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+  const name = req.query.name || null;
   const fields = req.query.fields
     ? req.query.fields.split(",").join(" ")
     : null;
 
   try {
-    const query = Player.find();
+    // Build the filter object
+    const filter = {};
+
+    if (name) {
+      filter.name = { $regex: name, $options: "i" }; // case-insensitive partial match
+    }
+
+    const query = Player.find(filter);
 
     if (fields) {
       query.select(fields);
@@ -22,9 +30,9 @@ async function getPaginatedPlayers(req, res) {
     const players = await query
       .skip((page - 1) * limit)
       .limit(limit)
-      .sort({ updated_at: -1 });
+      .sort({ updatedAt: -1 }); // Make sure your schema uses "timestamps: true"
 
-    const total = await Player.countDocuments();
+    const total = await Player.countDocuments(filter);
 
     res.json({
       page,
@@ -37,6 +45,7 @@ async function getPaginatedPlayers(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
 
 async function getPlayerById(req, res) {
   const { playerId } = req.params;

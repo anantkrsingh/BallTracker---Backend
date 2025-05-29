@@ -40,7 +40,7 @@ const setupWebSocketEvents = (wss) => {
               } else {
                 config = JSON.parse(config);
               }
-              console.log(config)
+              let matchId = `${JSON.parse(homepage).data[0].match_id}`;
               ws.send(
                 JSON.stringify({
                   type: "config",
@@ -62,6 +62,51 @@ const setupWebSocketEvents = (wss) => {
                   data: JSON.parse(series),
                 })
               );
+              if (currentUser && userRooms.has(currentUser)) {
+                const previousRoomId = userRooms.get(currentUser);
+                const previousRoom = rooms.get(previousRoomId);
+                if (previousRoom) {
+                  const index = previousRoom.indexOf(ws);
+                  if (index > -1) {
+                    previousRoom.splice(index, 1);
+                  }
+                  if (previousRoom.length === 0) {
+                    rooms.delete(previousRoomId);
+                  }
+                }
+              }
+
+              if (!rooms.has(matchId)) {
+                rooms.set(matchId, []);
+              }
+              if (!rooms.get(matchId).includes(ws)) {
+                rooms.get(matchId).push(ws);
+              }
+              if (currentUser) {
+                userRooms.set(currentUser, matchId);
+              }
+
+              const cacheData = await redisClient.get(matchId);
+
+              if (!cacheData || !cacheData.status) {
+                const data = await getLiveMatch(matchId);
+                getSquads(matchId);
+                ws.send(
+                  JSON.stringify({
+                    type: "live_match",
+                    message: "Live match data fetched successfully",
+                    data: data,
+                  })
+                );
+              } else {
+                ws.send(
+                  JSON.stringify({
+                    type: "live_match",
+                    message: "Live match data fetched successfully",
+                    data: JSON.parse(cacheData),
+                  })
+                );
+              }
             } else {
               ws.send(
                 JSON.stringify({
