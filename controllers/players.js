@@ -1,4 +1,5 @@
 const Player = require("../models/newPlayer");
+const PlayerOld = require("../models/player")
 const axios = require("axios");
 function parseDateOrNull(dateStr) {
   return !dateStr || dateStr === "0000-00-00" ? null : new Date(dateStr);
@@ -46,7 +47,6 @@ async function getPaginatedPlayers(req, res) {
   }
 }
 
-
 async function getPlayerById(req, res) {
   const { playerId } = req.params;
 
@@ -63,10 +63,27 @@ async function getPlayerById(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+async function getOldPlayerById(req, res) {
+  const { playerId } = req.params;
+
+  try {
+    const player = await PlayerOld.findOne({ id: playerId });
+
+    if (!player) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    res.json({ data: player });
+  } catch (err) {
+    console.error("Error fetching player by ID:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
 
 module.exports = {
   getPaginatedPlayers,
   getPlayerById,
+  getOldPlayerById
 };
 
 // insertPlayers();
