@@ -32,7 +32,7 @@ app.use("/api/auth", async (req, res) => {
   if (
     !appSig ||
     (appSig !== process.env.APP_SHA &&
-      appSig !== "mhgQwHNPlAIAnlil+nM4nkSFYNnV0+EmlJFgA8ib02X8=")
+      appSig !== "hgQwHNPlAIAnlil+nM4nkSFYNnV0+EmlJFgA8ib02X8=")
   ) {
     return res.status(401).json({ error: "Unauthorized" });
   }
