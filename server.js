@@ -10,6 +10,7 @@ const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
+const { startFetching } = require("./script");
 require("./redis");
 require("./controllers/players");
 
@@ -54,6 +55,8 @@ const startServer = async () => {
   try {
     await mongoose.connect("mongodb://anant:anant@64.227.187.78:27017");
     console.log("Connected to MongoDB");
+
+    // startFetching()
 
     setupWebSocketEvents(wss);
 

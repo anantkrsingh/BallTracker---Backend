@@ -15,11 +15,10 @@ async function getPaginatedPlayers(req, res) {
     : null;
 
   try {
-    // Build the filter object
     const filter = {};
 
     if (name) {
-      filter.name = { $regex: name, $options: "i" }; // case-insensitive partial match
+      filter.name = { $regex: name, $options: "i" }; 
     }
 
     const query = Player.find(filter);
@@ -31,7 +30,7 @@ async function getPaginatedPlayers(req, res) {
     const players = await query
       .skip((page - 1) * limit)
       .limit(limit)
-      .sort({ updatedAt: -1 }); // Make sure your schema uses "timestamps: true"
+      .sort({ updatedAt: -1 }); 
 
     const total = await Player.countDocuments(filter);
 

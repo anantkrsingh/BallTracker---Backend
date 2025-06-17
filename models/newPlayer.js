@@ -47,9 +47,10 @@ const PlayerSchema = new mongoose.Schema({
   height: String,
   birth_place: String,
   description: String, 
-  teams: String,
+  teams: [String],
   batting_career: [BattingCareerSchema],
-  bowling_career: [BowlingCareerSchema]
+  bowling_career: [BowlingCareerSchema],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('PlayerNew', PlayerSchema);
