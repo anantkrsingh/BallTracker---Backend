@@ -11,17 +11,17 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
-    try {
-        const config = await Config.findOneAndUpdate(
-            {},
-            req.body,
-            { new: true, upsert: true }
-        );
-        res.json(config);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update config' });
-    }
-});
+// router.post('/', async (req, res) => {
+//     try {
+//         const config = await Config.findOneAndUpdate(
+//             {},
+//             req.body,
+//             { new: true, upsert: true }
+//         );
+//         res.json(config);
+//     } catch (error) {
+//         res.status(500).json({ error: 'Failed to update config' });
+//     }
+// });
 
 module.exports = router; 

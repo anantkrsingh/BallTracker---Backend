@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const configSchema = new mongoose.Schema(
   {
     is_ads_show: {
-      type: Boolean,
+      type: Number,
       default: false,
     },
     base_url: {

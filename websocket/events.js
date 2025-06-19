@@ -36,7 +36,8 @@ const setupWebSocketEvents = (wss) => {
               let config = await redisClient.get("config");
               if (!config) {
                 config = await Config.findOne({});
-                await redisClient.set("config", JSON.stringify(config));
+                await redisClient.set("config", JSON.stringify(config), "EX",
+                  120);
               } else {
                 config = JSON.parse(config);
               }
