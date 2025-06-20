@@ -13,21 +13,21 @@ const insertTeam = async (req, res) => {
   const formattedTeams = teamEntries.map((team) => {
     const formattedSquad = Array.isArray(team.squad)
       ? team.squad.map((player) => ({
-          id: player.id,
-          firstname: player.firstname,
-          lastname: player.lastname,
-          fullname: player.fullname,
-          gender: player.gender,
-          dateofbirth: parseDateOrNull(player.dateofbirth),
-          country_id: player.country_id,
-          battingstyle: player.battingstyle,
-          bowlingstyle: player.bowlingstyle,
-          image_path: player.image_path,
-          resource: player.resource,
-          position: player.position || {},
-          squad: player.squad || {},
-          updated_at: parseDateOrNull(player.updated_at),
-        }))
+        id: player.id,
+        firstname: player.firstname,
+        lastname: player.lastname,
+        fullname: player.fullname,
+        gender: player.gender,
+        dateofbirth: parseDateOrNull(player.dateofbirth),
+        country_id: player.country_id,
+        battingstyle: player.battingstyle,
+        bowlingstyle: player.bowlingstyle,
+        image_path: player.image_path,
+        resource: player.resource,
+        position: player.position || {},
+        squad: player.squad || {},
+        updated_at: parseDateOrNull(player.updated_at),
+      }))
       : [];
 
     return {
@@ -65,9 +65,8 @@ async function getPaginatedTeams(req, res) {
     : null;
 
   try {
-    const cacheKey = `teams:page=${page}:limit=${limit}:fields=${
-      fields || "all"
-    }`;
+    const cacheKey = `teams:page=${page}:limit=${limit}:fields=${fields || "all"
+      }`;
 
     const cachedData = await redisClient.get(cacheKey);
 
@@ -106,13 +105,13 @@ async function getTeamById(req, res) {
   const { teamId } = req.params;
 
   try {
-    const team = await Team.findOne({id:teamId});
+    const team = await Team.findOne({ id: teamId });
 
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
     }
 
-    res.json({data: team});
+    res.json({ data: team });
   } catch (err) {
     console.error("Error fetching team by ID:", err.message);
     res.status(500).json({ error: "Internal server error" });

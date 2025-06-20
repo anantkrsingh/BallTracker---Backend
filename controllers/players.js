@@ -11,26 +11,48 @@ async function getPaginatedPlayers(req, res) {
   const limit = parseInt(req.query.limit) || 10;
   const name = req.query.name || null;
   const fields = req.query.fields
-    ? req.query.fields.split(",").join(" ")
+    ? req.query.fields.split(",")
     : null;
 
   try {
     const filter = {};
 
     if (name) {
-      filter.name = { $regex: name, $options: "i" }; 
+      filter.name = { $regex: name, $options: "i" };
     }
 
-    const query = Player.find(filter);
+    const matchStage = { $match: filter };
 
-    if (fields) {
-      query.select(fields);
-    }
+    const addFieldsStage = {
+      $addFields: {
+        hasSpecialImage: {
+          $cond: [
+            { $regexMatch: { input: "$image", regex: /cricketchampion\.co\.in/i } },
+            1,
+            0,
+          ],
+        },
+      },
+    };
 
-    const players = await query
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ updatedAt: -1 }); 
+    const sortStage = {
+      $sort: { hasSpecialImage: -1, updatedAt: -1 },
+    };
+
+    const projectStage = fields
+      ? {
+          $project: Object.fromEntries(fields.map((f) => [f, 1])),
+        }
+      : null;
+
+    const skipStage = { $skip: (page - 1) * limit };
+    const limitStage = { $limit: limit };
+
+    const pipeline = [matchStage, addFieldsStage, sortStage];
+    if (projectStage) pipeline.push(projectStage);
+    pipeline.push(skipStage, limitStage);
+
+    const players = await Player.aggregate(pipeline);
 
     const total = await Player.countDocuments(filter);
 
