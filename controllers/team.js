@@ -106,7 +106,16 @@ async function getTeamById(req, res) {
 
   try {
     const team = await Team.findOne({ id: teamId });
+    if (team && team.squad) {
+      const uniqueSquad = team.squad.reduce((acc, current) => {
+        if (!acc.find(p => p.id === current.id)) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
 
+      team.squad = uniqueSquad;
+    }
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
     }
