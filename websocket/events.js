@@ -36,12 +36,15 @@ const setupWebSocketEvents = (wss) => {
               let config = await redisClient.get("config");
               if (!config) {
                 config = await Config.findOne({});
-                await redisClient.set("config", JSON.stringify(config), "EX",
-                  120);
+                await redisClient.set(
+                  "config",
+                  JSON.stringify(config),
+                  "EX",
+                  120
+                );
               } else {
                 config = JSON.parse(config);
               }
-              let matchId = `${JSON.parse(homepage).data[0].match_id}`;
               ws.send(
                 JSON.stringify({
                   type: "config",
@@ -76,38 +79,6 @@ const setupWebSocketEvents = (wss) => {
                   }
                 }
               }
-
-              if (!rooms.has(matchId)) {
-                rooms.set(matchId, []);
-              }
-              if (!rooms.get(matchId).includes(ws)) {
-                rooms.get(matchId).push(ws);
-              }
-              if (currentUser) {
-                userRooms.set(currentUser, matchId);
-              }
-
-              const cacheData = await redisClient.get(matchId);
-
-              if (!cacheData || !cacheData.status) {
-                const data = await getLiveMatch(matchId);
-                getSquads(matchId);
-                ws.send(
-                  JSON.stringify({
-                    type: "live_match",
-                    message: "Live match data fetched successfully",
-                    data: data,
-                  })
-                );
-              } else {
-                ws.send(
-                  JSON.stringify({
-                    type: "live_match",
-                    message: "Live match data fetched successfully",
-                    data: JSON.parse(cacheData),
-                  })
-                );
-              }
             } else {
               ws.send(
                 JSON.stringify({
@@ -130,13 +101,14 @@ const setupWebSocketEvents = (wss) => {
         }
 
         if (data.type === "join_room" && data.token) {
+          const { matchId } = data;
           try {
-            const { matchId } = data;
-
             if (currentUser && userRooms.has(currentUser)) {
               const previousRoomId = userRooms.get(currentUser);
               const previousRoom = rooms.get(previousRoomId);
+
               if (previousRoom) {
+                console.log("User is already in a room");
                 const index = previousRoom.indexOf(ws);
                 if (index > -1) {
                   previousRoom.splice(index, 1);
@@ -147,24 +119,51 @@ const setupWebSocketEvents = (wss) => {
               }
             }
 
-            if (!rooms.has(matchId)) {
-              rooms.set(matchId, []);
+            console.log("New user joined room", matchId);
+
+            // Safely create or get room
+            let room = rooms.get(matchId);
+            if (!room) {
+              room = [];
+              rooms.set(matchId, room);
             }
-            if (!rooms.get(matchId).includes(ws)) {
-              rooms.get(matchId).push(ws);
+
+            if (!room.includes(ws)) {
+              room.push(ws);
             }
+
             if (currentUser) {
               userRooms.set(currentUser, matchId);
             }
 
+            // Get cached data from Redis and safely parse
             const cacheData = await redisClient.get(matchId);
+            let parsedCache = null;
 
-            if (!cacheData || !cacheData.status) {
+            if (cacheData) {
+              try {
+                parsedCache = JSON.parse(cacheData);
+              } catch (err) {
+                console.warn(
+                  "Failed to parse Redis cache for match:",
+                  matchId,
+                  err
+                );
+              }
+            }
+
+            if (!parsedCache || !parsedCache.status) {
               const data = await getLiveMatch(matchId);
-              getSquads(matchId);
+
+              try {
+                await getSquads(matchId); // Awaiting in case it's important
+              } catch (err) {
+                console.warn("Failed to get squads for match:", matchId, err);
+              }
+
               ws.send(
                 JSON.stringify({
-                  type: "live_match",
+                  type: "live_match" + matchId,
                   message: "Live match data fetched successfully",
                   data: data,
                 })
@@ -172,16 +171,35 @@ const setupWebSocketEvents = (wss) => {
             } else {
               ws.send(
                 JSON.stringify({
-                  type: "live_match",
-                  message: "Live match data fetched successfully",
-                  data: JSON.parse(cacheData),
+                  type: "live_match" + matchId,
+                  message: "Live match data fetched successfully (from cache)",
+                  data: parsedCache,
                 })
               );
             }
+
+            console.log("Live match data sent to user", matchId);
           } catch (error) {
-            console.log(error);
+            console.error("Error handling user join:", error);
           }
         }
+        // if (data.type === "leave_room") {
+        //   const { matchId } = data;
+        //   if (currentUser && connectedUsers.has(currentUser)) {
+        //     const room = rooms.get(matchId);
+        //     if (room) {
+        //       const index = room.indexOf(ws);
+        //       if (index > -1) {
+        //         room.splice(index, 1);
+        //       }
+        //       if (room.length === 0) {
+        //         rooms.delete(matchId);
+        //       }
+        //     }
+
+        //     connectedUsers.delete(currentUser);
+        //   }
+        // }
         if (data.type === "get_squads") {
           const { matchId } = data;
 

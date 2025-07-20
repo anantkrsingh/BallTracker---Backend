@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -8,12 +9,11 @@ const playersRouter = require("./routes/player");
 const redisClient = require("./redis");
 const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
 const { startFetching } = require("./script");
 require("./redis");
 require("./controllers/players");
-
+require("./loopers/rankings");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -24,6 +24,12 @@ app.use(express.static("public"));
 app.use("/api/config", configRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/players", playersRouter);
+app.use("/api/news", require("./routes/news"));
+app.use("/api/series", require("./routes/series"));
+app.use("/api/venue", require("./routes/venue"));
+app.use("/api/playerRankings", require("./routes/rankings"));
+app.use("/api/teamRankings", require("./routes/teamRankings"));
+app.use("/api/match", require("./routes/match"));
 
 app.use("/api/auth", async (req, res) => {
   const appSig = req.headers["x-app-signature"];

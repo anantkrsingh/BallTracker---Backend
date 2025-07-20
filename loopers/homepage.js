@@ -4,22 +4,11 @@ const redisClient = require("../redis");
 const WebSocket = require("ws");
 const FormData = require("form-data");
 const newPlayer = require("../models/newPlayer");
-
-let API_URL;
-let API_KEY;
+const { fetchAndSaveSeries } = require("../controllers/series");
+const Match = require("../models/match");
+let API_URL = process.env.API_URL;
+let API_KEY = process.env.API_KEY;
 let wss;
-
-const getConfig = async () => {
-  try {
-    const config = await Config.findOne({});
-    API_URL = config.base_url;
-    API_KEY = config.a_api_key;
-    console.log(API_URL, API_KEY);
-  } catch (error) {
-    console.log(error);
-  }
-};
-getConfig();
 
 const notifyClients = (type, data) => {
   if (wss) {
@@ -37,8 +26,6 @@ const notifyClients = (type, data) => {
   }
 };
 
-
-
 const getHomepage = async () => {
   if (!API_URL || !API_KEY) {
     return;
@@ -46,21 +33,33 @@ const getHomepage = async () => {
   try {
     const homepage = await redisClient.get("homepage");
     const response = await axios.get(`${API_URL}homeList${API_KEY}`);
-    // console.log("Got", response.data.data.length, "items on homepage");
+    let homeMatches = {
+      live: [],
+      upcoming: [],
+      finished: [],
+    };
 
-    for (let i = 0; i < response.data.data.length; i++) {
-      //   await getMatchPlayers(response.data.data[i].match_id);
+    for (match of response.data.data) {
+      if (match.match_status === "Live") {
+        homeMatches.live.push(match);
+      } else if (
+        match.match_status === "Upcoming" &&
+        homeMatches.upcoming.length < 5
+      ) {
+        homeMatches.upcoming.push(match);
+      } else if (match.status === "Finished") {
+        homeMatches.finished.push(match);
+      }
     }
 
     if (homepage) {
       const oldData = JSON.parse(homepage);
-      if (JSON.stringify(oldData) !== JSON.stringify(response.data)) {
-        // console.log("Homepage data changed, notifying clients");
-        notifyClients("homepage_list", response.data);
+      if (JSON.stringify(oldData) !== JSON.stringify(homeMatches)) {
+        notifyClients("homepage_list", homeMatches);
       }
     }
 
-    redisClient.set("homepage", JSON.stringify(response.data));
+    redisClient.set("homepage", JSON.stringify(homeMatches));
   } catch (error) {
     console.log(error);
   }
@@ -176,11 +175,45 @@ async function getPlayerData(playerId) {
   }
 }
 
+async function fetchUpcomingMatches() {
+  try {
+    const response = await axios.get(`${API_URL}upcomingMatches${API_KEY}`);
+
+    for (const match of response.data.data) {
+      const newMatch = {
+        ...match,
+        team_a: {
+          team_id: match.team_a_id,
+          name: match.team_a,
+          short_name: match.team_a_short,
+          img: match.team_a_img,
+        },
+        team_b: {
+          team_id: match.team_b_id,
+          name: match.team_b,
+          short_name: match.team_b_short,
+          img: match.team_b_img,
+        },
+      };
+
+      await Match.updateOne(
+        { match_id: match.match_id },
+        { $set: newMatch },
+        { upsert: true }
+      );
+    }
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 const startDataFetching = (websocketServer) => {
   wss = websocketServer;
   setInterval(() => {
     getHomepage();
     getSeries();
+    fetchUpcomingMatches();
+    fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
   }, 2000);
 };
 

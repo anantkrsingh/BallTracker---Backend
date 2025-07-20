@@ -3,6 +3,7 @@ const Config = require("../models/config");
 const redisClient = require("../redis");
 const WebSocket = require("ws");
 const FormData = require("form-data");
+const { clearMatchCache } = require("../controllers/matches");
 
 let API_URL;
 let API_KEY;
@@ -27,7 +28,7 @@ const notifyRoomUsers = (matchId, data) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
-          type: "live_match",
+          type: "live_match"+matchId,
           message: "Live match data updated",
           data: data,
         })
@@ -80,6 +81,8 @@ const getLiveMatch = async (matchId) => {
         if (JSON.stringify(oldData) !== JSON.stringify(response.data)) {
           console.log("Series data changed, notifying clients");
           notifyRoomUsers(matchId, response.data);
+          // Clear match cache when live data changes
+          await clearMatchCache(matchId);
         }
       }
     }

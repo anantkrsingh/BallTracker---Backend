@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@imgly/background-removal": "^1.6.0",
+    "@langchain/core": "^0.3.62",
+    "@langchain/google-genai": "^0.2.14",
     "axios": "^1.9.0",
     "cloudinary": "^2.6.1",
     "dotenv": "^16.5.0",
@@ -20,7 +22,8 @@
     "redis": "^5.0.1",
     "sharp": "^0.34.2",
     "uuid": "^11.1.0",
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
