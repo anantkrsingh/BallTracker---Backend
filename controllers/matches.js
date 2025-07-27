@@ -3,11 +3,11 @@ const redisClient = require("../redis");
 const FormData = require("form-data");
 const axios = require("axios");
 const Scorecard = require("../models/scorecard");
+
+
 async function getMatches(req, res) {
   try {
     const { match_type, page, date } = req.query;
-
-    // Build query with optional match_type filter
     let query = {};
     if (match_type) {
       query.match_type = { $regex: match_type, $options: "i" };
@@ -22,7 +22,6 @@ async function getMatches(req, res) {
 
     const totalPages = uniqueDates.length;
 
-    // Create dates with page information
     const datesWithPages = uniqueDates.map((dateStr, index) => ({
       date: dateStr,
       page: index + 1,
@@ -95,7 +94,6 @@ async function getMatches(req, res) {
     }
     // Check if page is provided
     else if (page) {
-      // When page is provided, return only that specific date
       const currentPage = parseInt(page) - 1; // Convert to 0-based index
       const validCurrentPage = Math.max(
         0,
