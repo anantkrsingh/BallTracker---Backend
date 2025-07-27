@@ -11,7 +11,7 @@ const SquadMemberSchema = new Schema({
     fullname: String,
     gender: {
         type: String,
-        enum: ['m', 'f'], // assuming only male and female values
+        enum: ['m', 'f'], 
     },
     dateofbirth: {
         type: Date,

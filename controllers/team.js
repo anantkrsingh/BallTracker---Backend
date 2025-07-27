@@ -60,13 +60,14 @@ const insertTeam = async (req, res) => {
 async function getPaginatedTeams(req, res) {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+  const name = req.query.name || "";
   const fields = req.query.fields
     ? req.query.fields.split(",").join(" ")
     : null;
 
   try {
     const cacheKey = `teams:page=${page}:limit=${limit}:fields=${fields || "all"
-      }`;
+      }:name=${name}`;
 
     const cachedData = await redisClient.get(cacheKey);
 
@@ -78,6 +79,10 @@ async function getPaginatedTeams(req, res) {
 
     if (fields) {
       query.select(fields);
+    }
+
+    if (name) {
+      query.where("name", { $regex: name, $options: "i" });
     }
 
     const teams = await query

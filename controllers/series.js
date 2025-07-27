@@ -895,5 +895,6 @@ module.exports = {
   getSeriesPointsTable,
   getSeriesTeamSquads,
   getSeriesSquads,
-  fetchMatchScorecard
+  fetchMatchScorecard,
+  getPlayerData,
 };

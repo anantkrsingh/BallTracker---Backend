@@ -12,6 +12,7 @@ async function getMatches(req, res) {
     if (match_type) {
       query.match_type = { $regex: match_type, $options: "i" };
     }
+    query.date_wise = { $ne: null };
 
     const matches = await Match.find(query).lean();
 
@@ -103,7 +104,7 @@ async function getMatches(req, res) {
 
       const currentDate = uniqueDates[validCurrentPage];
       const currentMatches = matches.filter(
-        (match) => match.date_wise.split(",")[0] === currentDate
+        (match) => match.date_wise?.split(",")[0] === currentDate
       );
 
       // Sort matches within the date
@@ -141,26 +142,26 @@ async function getMatches(req, res) {
 
       // Get matches for current date (today)
       const currentMatches = matches.filter(
-        (match) => match.date_wise.split(",")[0] === currentDate
+        (match) => match.date_wise?.split(",")[0] === currentDate
       );
 
       // Get matches for previous date (yesterday)
       const previousMatches = previousDate
         ? matches.filter(
-            (match) => match.date_wise.split(",")[0] === previousDate
+            (match) => match.date_wise?.split(",")[0] === previousDate
           )
         : [];
 
       // Sort matches within each date
       currentMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise.split(",")[0]);
-        const bDate = new Date(b.date_wise.split(",")[0]);
+        const aDate = new Date(a.date_wise?.split(",")[0]);
+        const bDate = new Date(b.date_wise?.split(",")[0]);
         return aDate - bDate;
       });
 
       previousMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise.split(",")[0]);
-        const bDate = new Date(b.date_wise.split(",")[0]);
+        const aDate = new Date(a.date_wise?.split(",")[0]);
+        const bDate = new Date(b.date_wise?.split(",")[0]);
         return aDate - bDate;
       });
 
@@ -298,6 +299,140 @@ async function getMatch(req, res) {
   }
 }
 
+async function getMatchSquads(req, res) {
+  try {
+    const { matchId } = req.params;
+    const cacheKey = `squadsByMatchId:${matchId}`;
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json({ data: JSON.parse(cachedData) });
+    }
+    const formData = new FormData();
+    formData.append("match_id", matchId);
+
+    const API_URL = process.env.API_URL || "";
+    const API_KEY = process.env.API_KEY || "";
+
+    const squadsResponse = await axios.post(
+      `${API_URL}squadsByMatchId${API_KEY}`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+    const { getPlayerData } = require("./series");
+
+    let dat = {
+      team_a: {
+        name: squadsResponse.data.data.team_a.name,
+        short_name: squadsResponse.data.data.team_a.short_name,
+        flag: squadsResponse.data.data.team_a.flag,
+        players: [],
+      },
+      team_b: {
+        name: squadsResponse.data.data.team_b.name,
+        short_name: squadsResponse.data.data.team_b.short_name,
+        flag: squadsResponse.data.data.team_b.flag,
+        players: [],
+      },
+    };
+    for (player of squadsResponse.data.data.team_a.player) {
+      const playerData = await getPlayerData(
+        player.player_id,
+        squadsResponse.data.data.team_a.name
+      );
+      dat.team_a.players.push({
+        ...player,
+        player: playerData._id,
+      });
+    }
+    for (player of squadsResponse.data.data.team_b.player) {
+      const playerData = await getPlayerData(
+        player.player_id,
+        squadsResponse.data.data.team_b.name
+      );
+      dat.team_b.players.push({
+        ...player,
+        player: playerData._id,
+      });
+    }
+    await redisClient.setEx(cacheKey, 300, JSON.stringify(dat));
+    return res.status(200).json({ data: dat });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+async function getMatchCommentary(req, res) {
+  try {
+    const { matchId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const formData = new FormData();
+    formData.append("match_id", matchId);
+
+    const API_URL = process.env.API_URL || "";
+    const API_KEY = process.env.API_KEY || "";
+
+    const commentaryResponse = await axios.post(
+      `${API_URL}commentary${API_KEY}`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    const rawData = commentaryResponse.data.data;
+
+    // Step 1: Flatten the commentary
+    const flatCommentary = [];
+
+    for (const inningKey in rawData) {
+      const overs = rawData[inningKey];
+      for (const overKey in overs) {
+        const events = overs[overKey];
+        for (const item of events) {
+          flatCommentary.push({
+            ...item,
+            inningKey,
+            overKey,
+          });
+        }
+      }
+    }
+
+    // Step 2: Sort by commentary_id (descending)
+    flatCommentary.sort((a, b) => b.commentary_id - a.commentary_id);
+
+    // Step 3: Pagination
+    const total = flatCommentary.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedData = flatCommentary.slice(start, end);
+
+    // Step 4: Return paginated response
+    return res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasNextPage: end < total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching commentary:", error.message);
+    return res.status(500).json({ error: "Failed to fetch commentary" });
+  }
+}
+
 async function getMatchScorecard(req, res) {
   try {
     const { match_id } = req.params;
@@ -350,6 +485,32 @@ async function getMatchScorecard(req, res) {
   }
 }
 
+async function getMatchFeeds(req, res) {
+  try {
+    const { matchId } = req.params;
+
+    const formData = new FormData();
+    formData.append("match_id", matchId);
+
+    const API_URL = process.env.API_URL || "";
+    const API_KEY = process.env.API_KEY || "";
+
+    const matchFancyResponse = await axios.post(
+      `${API_URL}matchFancy${API_KEY}`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    const matchFancyData = matchFancyResponse.data.data;
+    return res.status(200).json({ data: matchFancyData });
+  } catch (error) {}
+}
+
 async function clearMatchCache(matchId) {
   try {
     const cacheKey = `match:${matchId}`;
@@ -374,4 +535,7 @@ module.exports = {
   getMatchScorecard,
   clearMatchCache,
   clearScorecardCache,
+  getMatchSquads,
+  getMatchCommentary,
+  getMatchFeeds,
 };

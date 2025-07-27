@@ -6,6 +6,7 @@ const FormData = require("form-data");
 const newPlayer = require("../models/newPlayer");
 const { fetchAndSaveSeries } = require("../controllers/series");
 const Match = require("../models/match");
+const Shorts = require("../models/shorts");
 let API_URL = process.env.API_URL;
 let API_KEY = process.env.API_KEY;
 let wss;
@@ -207,13 +208,38 @@ async function fetchUpcomingMatches() {
   }
 }
 
+
+async function getShorts(){
+  try{
+    const response = await axios.get(`${API_URL}news${API_KEY}`);
+    for(const news of response.data.data){
+      const newsExist = await Shorts.findOne({news_id: news.news_id});
+      if(newsExist){
+        continue;
+      }
+      const newNews = new Shorts({
+        news_id: news.news_id,
+        title: news.title,
+        description: news.description,
+        image: news.image,
+        pub_date: news.pub_date,
+        content: news.content,
+      });
+      await newNews.save();
+    }
+  }catch(error){
+    console.log(error);
+  }
+}
+
 const startDataFetching = (websocketServer) => {
   wss = websocketServer;
   setInterval(() => {
     getHomepage();
     getSeries();
+    // getShorts()
     fetchUpcomingMatches();
-    fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
+    // fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
   }, 2000);
 };
 
