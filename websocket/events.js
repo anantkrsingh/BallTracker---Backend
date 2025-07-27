@@ -41,7 +41,7 @@ const setupWebSocketEvents = (wss) => {
               } else {
                 config = JSON.parse(config);
               }
-              let matchId = `${JSON.parse(homepage).data[0].match_id}`;
+              let matchId = `${JSON.parse(homepage)?.data[0]?.match_id}`;
               ws.send(
                 JSON.stringify({
                   type: "config",
