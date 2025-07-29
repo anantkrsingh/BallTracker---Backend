@@ -238,7 +238,7 @@ const startDataFetching = (websocketServer) => {
     getHomepage();
     getSeries();
     // getShorts()
-    fetchUpcomingMatches();
+    // fetchUpcomingMatches();
     // fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
   }, 2000);
 };

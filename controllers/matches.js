@@ -4,7 +4,6 @@ const FormData = require("form-data");
 const axios = require("axios");
 const Scorecard = require("../models/scorecard");
 
-
 async function getMatches(req, res) {
   try {
     const { match_type, page, date } = req.query;
@@ -337,28 +336,33 @@ async function getMatchSquads(req, res) {
         players: [],
       },
     };
-    for (player of squadsResponse.data.data.team_a.player) {
-      const playerData = await getPlayerData(
-        player.player_id,
-        squadsResponse.data.data.team_a.name
-      );
-      dat.team_a.players.push({
+    
+    // Process team A players in parallel
+    const teamAPlayers = squadsResponse.data.data.team_a.player;
+    const teamAPlayerPromises = teamAPlayers.map(async (player) => {
+      const playerData = await getPlayerData(player.player_id, dat.team_a.name);
+      return {
         ...player,
-        player: playerData._id,
-      });
-    }
-    for (player of squadsResponse.data.data.team_b.player) {
-      const playerData = await getPlayerData(
-        player.player_id,
-        squadsResponse.data.data.team_b.name
-      );
-      dat.team_b.players.push({
+        player: playerData?._id ?? null,  // fallback if undefined
+      };
+    });
+    dat.team_a.players = await Promise.all(teamAPlayerPromises);
+    
+    // Process team B players in parallel
+    const teamBPlayers = squadsResponse.data.data.team_b.player;
+    const teamBPlayerPromises = teamBPlayers.map(async (player) => {
+      const playerData = await getPlayerData(player.player_id, dat.team_b.name);
+      return {
         ...player,
-        player: playerData._id,
-      });
-    }
-    await redisClient.setEx(cacheKey, 300, JSON.stringify(dat));
+        player: playerData?._id ?? null,
+      };
+    });
+    dat.team_b.players = await Promise.all(teamBPlayerPromises);
+    
+    // Cache and respond
+    await redisClient.setEx(cacheKey, 3000, JSON.stringify(dat));
     return res.status(200).json({ data: dat });
+    
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal server error" });
