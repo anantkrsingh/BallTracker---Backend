@@ -767,7 +767,7 @@ async function getSeriesOverview(req, res) {
       };
     }
 
-    await redis.set(redisKey, JSON.stringify(result), "EX", 3600);
+    await redis.set(redisKey, JSON.stringify(result), "EX", 43200);
 
     return res.status(200).json(result);
   } catch (error) {
@@ -809,6 +809,15 @@ async function getSeriesMatches(req, res) {
       return res.status(400).json({ error: "Series ID is required" });
     }
 
+    const cacheKey = `seriesMatches:${seriesId}`;
+    const TTL_10_HRS = 60 * 60 * 10;
+
+    // Check cache first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({ data: JSON.parse(cached) });
+    }
+
     const matches = await Match.find({ series_id: seriesId });
 
     if (!matches || matches.length === 0) {
@@ -816,6 +825,9 @@ async function getSeriesMatches(req, res) {
         .status(404)
         .json({ error: "No matches found for this series" });
     }
+
+    // Cache the result
+    await redis.setEx(cacheKey, TTL_10_HRS, JSON.stringify(matches));
 
     return res.status(200).json({ data: matches });
   } catch (error) {
@@ -829,10 +841,23 @@ async function getSeriesSquads(req, res) {
     if (!seriesId) {
       return res.status(400).json({ error: "Series ID is required" });
     }
+
+    const cacheKey = `seriesSquads:${seriesId}`;
+    const TTL_10_HRS = 60 * 60 * 10;
+
+    // Check cache first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({ data: JSON.parse(cached) });
+    }
+
     const squads = await Squads.findOne(
       { series_id: seriesId },
       { "teams.players": 0, series_id: 0 }
     );
+
+    // Cache the result
+    await redis.setEx(cacheKey, TTL_10_HRS, JSON.stringify(squads));
 
     return res.status(200).json({ data: squads });
   } catch (error) {
@@ -847,6 +872,15 @@ async function getSeriesTeamSquads(req, res) {
       return res.status(400).json({ error: "ID is required" });
     }
 
+    const cacheKey = `seriesTeamSquads:${squadId}:${id}`;
+    const TTL_10_HRS = 60 * 60 * 10;
+
+    // Check cache first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({ data: JSON.parse(cached) });
+    }
+
     const squads = await Squads.findOne({ _id: squadId }).populate({
       path: "teams.players",
       select: "name player_id image",
@@ -857,6 +891,9 @@ async function getSeriesTeamSquads(req, res) {
     const specificTeam = squads.teams.find(
       (team) => team._id.toString() === id
     );
+
+    // Cache the result
+    await redis.setEx(cacheKey, TTL_10_HRS, JSON.stringify(specificTeam));
 
     return res.status(200).json({ data: specificTeam });
   } catch (error) {
@@ -872,6 +909,15 @@ async function getSeriesPointsTable(req, res) {
       return res.status(400).json({ error: "Series ID is required" });
     }
 
+    const cacheKey = `seriesPointsTable:${seriesId}`;
+    const TTL_10_HRS = 60 * 60 * 10;
+
+    // Check cache first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({ data: JSON.parse(cached) });
+    }
+
     const pointsTable = await PointsTable.find({ series_id: seriesId }).sort({
       NRR: -1,
     });
@@ -881,6 +927,9 @@ async function getSeriesPointsTable(req, res) {
         .status(404)
         .json({ error: "No points table found for this series" });
     }
+
+    // Cache the result
+    await redis.setEx(cacheKey, TTL_10_HRS, JSON.stringify(pointsTable));
 
     return res.status(200).json({ data: pointsTable });
   } catch (error) {
