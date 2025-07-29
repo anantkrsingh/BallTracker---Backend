@@ -433,7 +433,7 @@ async function fetchMatchScorecard(matchId) {
     );
 
     await clearMatchCache(matchId);
-    
+
     const { clearScorecardCache } = require("./matches");
     await clearScorecardCache(matchId);
   } catch (error) {
@@ -513,7 +513,9 @@ async function getSeriesOverview(req, res) {
 
     const cachedData = await redis.get(redisKey);
     if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
+      if (JSON.parse(cachedData) != {}) {
+        return res.status(200).json(JSON.parse(cachedData));
+      }
     }
 
     const matches = await fetchMatchesWithScorecards(seriesId);
