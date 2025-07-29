@@ -513,7 +513,7 @@ async function getSeriesOverview(req, res) {
 
     const cachedData = await redis.get(redisKey);
     if (cachedData) {
-      if (JSON.parse(cachedData) != {}) {
+      if (JSON.parse(cachedData) != null) {
         return res.status(200).json(JSON.parse(cachedData));
       }
     }
