@@ -955,7 +955,7 @@ async function getSeriesPointsTable(req, res) {
 const fetchSeriesData = () => {
   setInterval(() => {
     fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
-  }, 60000);
+  }, 7200000); 
 };
 
 module.exports = {
