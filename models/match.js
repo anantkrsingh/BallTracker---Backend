@@ -52,6 +52,11 @@ const MatchSchema = new mongoose.Schema(
     umpire: String,
     third_umpire: String,
     referee: String,
+    team_a_img: String,
+    team_b_img: String,
+    team_a_short: String,
+    team_b_short: String,
+
     team_a_over: String,
     team_b_over: String,
     team_a_scores: String,
