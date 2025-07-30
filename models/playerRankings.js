@@ -8,6 +8,7 @@ const PlayerRankingsSchema = new mongoose.Schema({
   country: String,
   type: String,
   rankingType: String,
+  position: Number,
   player: { type: mongoose.Schema.Types.ObjectId, ref: "PlayerNew" },
 });
 

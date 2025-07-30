@@ -9,6 +9,7 @@ const TeamRankingsSchema = new mongoose.Schema({
   type: String,
   rankingType: String,
   team: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+  position: Number,
 });
 
 module.exports = mongoose.model("TeamRankings", TeamRankingsSchema);

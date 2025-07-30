@@ -3,200 +3,92 @@ const redisClient = require("../redis");
 const FormData = require("form-data");
 const axios = require("axios");
 const Scorecard = require("../models/scorecard");
-
+const API_URL = process.env.API_URL || "";
+const API_KEY = process.env.API_KEY || "";
 async function getMatches(req, res) {
   try {
-    const { match_type, page, date } = req.query;
-    let query = {};
-    if (match_type) {
-      query.match_type = { $regex: match_type, $options: "i" };
+    const { match_type, match_status, page, limit } = req.query;
+
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
+
+    const cacheKey = `matches:${match_type || "all"}:${match_status || "all"}:${pageNumber}:${pageSize}`;
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
     }
-    query.date_wise = { $ne: null };
 
-    const matches = await Match.find(query).lean();
+    let matchData = [];
 
-    const uniqueDates = [
-      ...new Set(matches.map((match) => match?.date_wise?.split(",")[0])),
-    ].sort((a, b) => new Date(a) - new Date(b));
+    if (match_status === "Upcoming") {
+      const response = await axios.get(`${API_URL}upcomingMatches${API_KEY}`);
+      matchData = response.data?.data || [];
+    } else if (match_status === "Finished") {
+      const response = await axios.get(`${API_URL}recentMatches${API_KEY}`);
+      matchData = response.data?.data || [];
+    } else {
+      return res.status(400).json({ error: "Unsupported match_status value" });
+    }
+    if (match_type) {
+      matchData = matchData.filter((match) =>
+        match.match_type?.toLowerCase().includes(match_type.toLowerCase())
+      );
+    }
 
-    const totalPages = uniqueDates.length;
+    matchData.sort((a, b) => {
+      const aDate = new Date(a.date_wise?.split(",")[0]);
+      const bDate = new Date(b.date_wise?.split(",")[0]);
+    
+      return match_status === "Upcoming"
+        ? aDate - bDate 
+        : bDate - aDate; 
+    });
+    
 
-    const datesWithPages = uniqueDates.map((dateStr, index) => ({
-      date: dateStr,
-      page: index + 1,
+    const totalMatches = matchData.length;
+    const totalPages = Math.ceil(totalMatches / pageSize);
+    const startIndex = (pageNumber - 1) * pageSize;
+    const paginatedMatches = matchData.slice(startIndex, startIndex + pageSize);
+
+    const matchesByDate = {};
+    paginatedMatches.forEach((match) => {
+      const date = match.date_wise?.split(",")[0];
+      if (date) {
+        if (!matchesByDate[date]) {
+          matchesByDate[date] = [];
+        }
+        matchesByDate[date].push(match);
+      }
+    });
+
+    const result = Object.keys(matchesByDate).map((date) => ({
+      date,
+      matches: matchesByDate[date],
     }));
 
-    // Find today's date page
-    const today = new Date();
-    const todayString = today.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    const pagination = {
+      currentPage: pageNumber,
+      totalPages,
+      totalMatches,
+      hasNextPage: pageNumber < totalPages,
+      hasPreviousPage: pageNumber > 1,
+      nextPage: pageNumber < totalPages ? pageNumber + 1 : null,
+      previousPage: pageNumber > 1 ? pageNumber - 1 : null,
+      pageSize,
+    };
 
-    // Find the page that contains today's date or the closest date
-    let todayPageIndex = uniqueDates.findIndex((date) =>
-      date.includes(todayString)
-    );
-
-    // If today's date not found, find the closest future date
-    if (todayPageIndex === -1) {
-      todayPageIndex = uniqueDates.findIndex((date) => new Date(date) >= today);
-      // If no future date found, use the last page
-      if (todayPageIndex === -1) {
-        todayPageIndex = uniqueDates.length - 1;
-      }
-    }
-
-    let result = [];
-    let pagination = {};
-
-    // Check if date parameter is provided
-    if (date) {
-      // Find the page for the specific date
-      const datePageIndex = uniqueDates.findIndex((d) => d === date);
-
-      if (datePageIndex === -1) {
-        return res.status(404).json({ error: "Date not found" });
-      }
-
-      const currentMatches = matches.filter(
-        (match) => match.date_wise.split(",")[0] === date
-      );
-
-      // Sort matches within the date
-      currentMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise.split(",")[0]);
-        const bDate = new Date(b.date_wise.split(",")[0]);
-        return aDate - bDate;
-      });
-
-      result = [
-        {
-          date: date,
-          matches: currentMatches,
-        },
-      ];
-
-      pagination = {
-        currentPage: datePageIndex + 1,
-        totalPages: totalPages,
-        totalDates: totalPages,
-        hasNextPage: datePageIndex < totalPages - 1,
-        hasPreviousPage: datePageIndex > 0,
-        nextPage: datePageIndex < totalPages - 1 ? datePageIndex + 2 : null,
-        previousPage: datePageIndex > 0 ? datePageIndex : null,
-        todayPage: todayPageIndex + 1,
-        currentDate: date,
-        datesWithPages: datesWithPages,
-      };
-    }
-    // Check if page is provided
-    else if (page) {
-      const currentPage = parseInt(page) - 1; // Convert to 0-based index
-      const validCurrentPage = Math.max(
-        0,
-        Math.min(currentPage, totalPages - 1)
-      );
-
-      const currentDate = uniqueDates[validCurrentPage];
-      const currentMatches = matches.filter(
-        (match) => match.date_wise?.split(",")[0] === currentDate
-      );
-
-      // Sort matches within the date
-      currentMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise.split(",")[0]);
-        const bDate = new Date(b.date_wise.split(",")[0]);
-        return aDate - bDate;
-      });
-
-      result = [
-        {
-          date: currentDate,
-          matches: currentMatches,
-        },
-      ];
-
-      pagination = {
-        currentPage: validCurrentPage + 1,
-        totalPages: totalPages,
-        totalDates: totalPages,
-        hasNextPage: validCurrentPage < totalPages - 1,
-        hasPreviousPage: validCurrentPage > 0,
-        nextPage:
-          validCurrentPage < totalPages - 1 ? validCurrentPage + 2 : null,
-        previousPage: validCurrentPage > 0 ? validCurrentPage : null,
-        todayPage: todayPageIndex + 1,
-        currentDate: currentDate,
-        datesWithPages: datesWithPages,
-      };
-    } else {
-      // When no page is provided, return today + yesterday (default behavior)
-      const currentDate = uniqueDates[todayPageIndex];
-      const previousDate =
-        todayPageIndex > 0 ? uniqueDates[todayPageIndex - 1] : null;
-
-      // Get matches for current date (today)
-      const currentMatches = matches.filter(
-        (match) => match.date_wise?.split(",")[0] === currentDate
-      );
-
-      // Get matches for previous date (yesterday)
-      const previousMatches = previousDate
-        ? matches.filter(
-            (match) => match.date_wise?.split(",")[0] === previousDate
-          )
-        : [];
-
-      // Sort matches within each date
-      currentMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise?.split(",")[0]);
-        const bDate = new Date(b.date_wise?.split(",")[0]);
-        return aDate - bDate;
-      });
-
-      previousMatches.sort((a, b) => {
-        const aDate = new Date(a.date_wise?.split(",")[0]);
-        const bDate = new Date(b.date_wise?.split(",")[0]);
-        return aDate - bDate;
-      });
-
-      // Prepare the response data in ascending order (previous date first, then current date)
-      if (previousDate) {
-        result.push({
-          date: previousDate,
-          matches: previousMatches,
-        });
-      }
-
-      result.push({
-        date: currentDate,
-        matches: currentMatches,
-      });
-
-      pagination = {
-        currentPage: todayPageIndex + 1,
-        totalPages: totalPages,
-        totalDates: totalPages,
-        hasNextPage: todayPageIndex < totalPages - 1,
-        hasPreviousPage: todayPageIndex > 0,
-        nextPage: todayPageIndex < totalPages - 1 ? todayPageIndex + 2 : null,
-        previousPage: todayPageIndex > 0 ? todayPageIndex : null,
-        todayPage: todayPageIndex + 1,
-        currentDate: currentDate,
-        previousDate: previousDate,
-        datesWithPages: datesWithPages,
-      };
-    }
-
-    res.status(200).json({
+    const responseData = {
       data: result,
-      pagination: pagination,
-    });
+      pagination,
+    };
+
+    // Cache the result for 10 minutes (600 seconds)
+    await redisClient.setEx(cacheKey, 600, JSON.stringify(responseData));
+
+    return res.status(200).json(responseData);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("getMatches error:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -211,8 +103,6 @@ async function getMatch(req, res) {
       const match = JSON.parse(cachedMatch);
       return res.status(200).json({ match });
     }
-
-    // Fetch from API
     const formData = new FormData();
     formData.append("match_id", match_id);
 
@@ -278,17 +168,12 @@ async function getMatch(req, res) {
       team_b_short: apiData.team_b_short,
       team_b_img: apiData.team_b_img,
     };
-
-    // Update or create match in database
     const match = await Match.findOneAndUpdate(
       { match_id: parseInt(match_id) },
       matchData,
       { new: true, upsert: true }
     );
-
-    // Cache in Redis for 10 minutes
     await redisClient.setEx(cacheKey, 600, JSON.stringify(match));
-
     res.status(200).json({ match });
   } catch (error) {
     console.log(error);
@@ -336,18 +221,18 @@ async function getMatchSquads(req, res) {
         players: [],
       },
     };
-    
+
     // Process team A players in parallel
     const teamAPlayers = squadsResponse.data.data.team_a.player;
     const teamAPlayerPromises = teamAPlayers.map(async (player) => {
       const playerData = await getPlayerData(player.player_id, dat.team_a.name);
       return {
         ...player,
-        player: playerData?._id ?? null,  // fallback if undefined
+        player: playerData?._id ?? null, // fallback if undefined
       };
     });
     dat.team_a.players = await Promise.all(teamAPlayerPromises);
-    
+
     // Process team B players in parallel
     const teamBPlayers = squadsResponse.data.data.team_b.player;
     const teamBPlayerPromises = teamBPlayers.map(async (player) => {
@@ -358,11 +243,10 @@ async function getMatchSquads(req, res) {
       };
     });
     dat.team_b.players = await Promise.all(teamBPlayerPromises);
-    
+
     // Cache and respond
     await redisClient.setEx(cacheKey, 3000, JSON.stringify(dat));
     return res.status(200).json({ data: dat });
-    
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal server error" });

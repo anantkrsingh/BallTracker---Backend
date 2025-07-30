@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { z } = require("zod");
 require("dotenv").config();
+const { v4: uuidv4 } = require("uuid");
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
 const { PromptTemplate } = require("@langchain/core/prompts");
 const { StructuredOutputParser } = require("@langchain/core/output_parsers");
@@ -92,7 +93,7 @@ HTML:
 );
 
 const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-001",
+  model: "gemini-2.5-pro",
   temperature: 0,
   apiKey:
     process.env.GOOGLE_API_KEY || `AIzaSyCqb0NIA63NtjEUjJBf_fCjbZYuRwJyVVw`,
@@ -120,10 +121,8 @@ async function teamRankings(html) {
 
 async function saveTeamRankings(data, style, rankingType) {
   const formats = Object.keys(data);
-  console.log(formats);
   for (const format of formats) {
     for (const team of data[format]) {
-      console.log(team);
       const teamObj = await Team.findOne({
         name: { $regex: new RegExp(`^${team.Team}$`, "i") },
       });
@@ -137,13 +136,13 @@ async function saveTeamRankings(data, style, rankingType) {
         position: team.Position,
         type: format,
       };
-      console.log(teamRanking);
       const rankings = await TeamRankings.updateOne(
         {
-          team: teamObj?._id,
+          // team: teamObj?._id,
           type: format,
           rankingType: rankingType,
           name: team.Team,
+          position: team.Position,
         },
         teamRanking,
         { upsert: true }
@@ -153,10 +152,24 @@ async function saveTeamRankings(data, style, rankingType) {
 }
 async function saveRankings(data, style, rankingType) {
   const formats = Object.keys(data);
-  console.log(formats);
+
   for (const format of formats) {
     for (const player of data[format]) {
-      const playerObj = await PlayerNew.findOne({ name: player.Player });
+      let playerObj = await PlayerNew.findOne({
+        name: new RegExp(`^${player.Player}$`, "i"),
+      });
+      if (!playerObj) {
+        const newPlayerId = uuidv4();
+        playerObj = await PlayerNew.create({
+          player_id: newPlayerId,
+          name: player.Player,
+          country: player.Country,
+        });
+        console.log(
+          `Created new player: ${player.Player} (ID: ${newPlayerId})`
+        );
+      }
+
       const playerRanking = {
         style: style,
         rankingType: rankingType,
@@ -166,16 +179,17 @@ async function saveRankings(data, style, rankingType) {
         country: player.Country,
         position: player.Position,
         type: format,
+        position: player.Position,
       };
-      console.log(playerRanking);
-      const rankings = await PlayerRankings.updateOne(
+
+      await PlayerRankings.updateOne(
         {
-          player: playerObj?._id,
           type: format,
           rankingType: rankingType,
           country: player.Country,
+          position: player.Position,
         },
-        playerRanking,
+        { $set: playerRanking },
         { upsert: true }
       );
     }
@@ -183,24 +197,47 @@ async function saveRankings(data, style, rankingType) {
 }
 
 (async () => {
-  // const html = await axios.get(
-  //   "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/batting"
-  // );
-  // const htmlBowling = await axios.get(
-  //   "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/bowling"
-  // );
-  // const allRounder = await axios.get(
-  //   "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/all-rounder"
-  // );
-  // const teams = await axios.get(
-  //   "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/teams"
-  // );
-  //   const data = await rankings(html.data);
-  //   const dataBowling = await rankings(htmlBowling.data);
-  //   const dataAllRounder = await rankings(allRounder.data);
-  //   const dataTeams = await teamRankings(teams.data);
-  //   await saveRankings(data, "Batting", "Men");
-  //   await saveRankings(dataBowling, "Bowling", "Men");
-  //   await saveRankings(dataAllRounder, "All Rounder", "Men");
-  //   await saveTeamRankings(dataTeams, "Teams", "Men");
+  const html = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/batting"
+  );
+  const womenBatting = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/batting"
+  );
+  const htmlBowling = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/bowling"
+  );
+  const womenBowling = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/bowling"
+  );
+  const allRounder = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/all-rounder"
+  );
+  const womenAllRounder = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/all-rounder"
+  );
+  const teams = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/teams"
+  );
+  const womenTeams = await axios.get(
+    "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/teams"
+  );
+  const data = await rankings(html.data);
+  const dataBowling = await rankings(htmlBowling.data);
+  const dataAllRounder = await rankings(allRounder.data);
+  const dataTeams = await teamRankings(teams.data);
+  const dataWomenBatting = await rankings(womenBatting.data);
+  console.log("Women batting rankings " + JSON.stringify(dataWomenBatting));
+  const dataWomenBowling = await rankings(womenBowling.data);
+  const dataWomenAllRounder = await rankings(womenAllRounder.data);
+
+  const dataWomenTeams = await teamRankings(womenTeams.data);
+
+  await saveRankings(dataWomenBatting, "Batting", "Women");
+  await saveRankings(dataWomenBowling, "Bowling", "Women");
+  await saveRankings(dataWomenAllRounder, "All Rounder", "Women");
+  await saveTeamRankings(dataWomenTeams, "Teams", "Women");
+  await saveRankings(data, "Batting", "Men");
+  await saveRankings(dataBowling, "Bowling", "Men");
+  await saveRankings(dataAllRounder, "All Rounder", "Men");
+  await saveTeamRankings(dataTeams, "Teams", "Men");
 })();
