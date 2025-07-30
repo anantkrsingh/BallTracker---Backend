@@ -1,33 +1,31 @@
-const PlayerRankings = require("../models/playerRankings");
-const TeamRankings = require("../models/teamRankings");
+
+const redis = require("../redis");
+
+
 const getRankings = async (req, res) => {
-  const { style, rankingType = "Men", type } = req.query;
-  const rankings = await PlayerRankings.find({ style, rankingType, type })
-    .populate({
-      path: "player",
-      select: "image",
-    })
-    .sort({ rating: -1 });
+  const { style, rankingType = "Men", type = "Odi" } = req.query;
+
+
+  const cacheKey = `playerRanking${style}-${rankingType}-${type}`
+
+  const data = await redis.get(cacheKey)
+
+
   res.status(200).json({
-    data: rankings,
+    data: JSON.parse(data),
   });
 };
 
 const getTeamRankings = async (req, res) => {
+
   const { rankingType = "Men", type = "Test" } = req.query;
-  console.log(rankingType, type);
-  const rankings = await TeamRankings.find({
-    style: "Teams",
-    rankingType,
-    type,
-  })
-    .populate({
-      path: "team",
-      select: "image_path",
-    })
-    .sort({ rating: -1 });
+  const cacheKey = `teamRanking-${rankingType}-${type}`
+
+  const data = await redis.get(cacheKey)
+
+
   res.status(200).json({
-    data: rankings,
+    data: JSON.parse(data),
   });
 };
 module.exports = { getRankings, getTeamRankings };

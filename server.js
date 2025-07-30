@@ -11,9 +11,10 @@ const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { startFetching } = require("./script");
+const { fetchSeriesData } = require("./controllers/series")
 require("./redis");
 require("./controllers/players");
-require("./loopers/rankings");
+const { runRankingsJob } = require("./loopers/rankings");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -68,9 +69,12 @@ const startServer = async () => {
 
     require("./loopers/homepage");
 
+
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
+      fetchSeriesData()
+      runRankingsJob()
     });
   } catch (error) {
     console.error("Failed to start server:", error);

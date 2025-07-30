@@ -209,12 +209,12 @@ async function fetchUpcomingMatches() {
 }
 
 
-async function getShorts(){
-  try{
+async function getShorts() {
+  try {
     const response = await axios.get(`${API_URL}news${API_KEY}`);
-    for(const news of response.data.data){
-      const newsExist = await Shorts.findOne({news_id: news.news_id});
-      if(newsExist){
+    for (const news of response.data.data) {
+      const newsExist = await Shorts.findOne({ news_id: news.news_id });
+      if (newsExist) {
         continue;
       }
       const newNews = new Shorts({
@@ -227,7 +227,7 @@ async function getShorts(){
       });
       await newNews.save();
     }
-  }catch(error){
+  } catch (error) {
     console.log(error);
   }
 }
@@ -239,8 +239,10 @@ const startDataFetching = (websocketServer) => {
     getSeries();
     // getShorts()
     // fetchUpcomingMatches();
-    // fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
-  }, 2000);
+  }, 3600000);
 };
+
+
+
 
 module.exports = startDataFetching;

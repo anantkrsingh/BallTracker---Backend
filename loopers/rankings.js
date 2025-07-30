@@ -9,6 +9,7 @@ const PlayerRankings = require("../models/playerRankings");
 const PlayerNew = require("../models/newPlayer");
 const Team = require("../models/team");
 const TeamRankings = require("../models/teamRankings");
+const redisClient = require("../redis")
 const Schema = z.object({
   Test: z.array(
     z.object({
@@ -104,9 +105,11 @@ async function rankings(html) {
     html: html,
     format_instructions: parser.getFormatInstructions(),
   });
+  console.log("Model invoked")
 
   const response = await model.invoke(formattedPrompt);
   const data = parser.parse(response.content);
+  console.log("Got response from model")
   return data;
 }
 async function teamRankings(html) {
@@ -122,6 +125,8 @@ async function teamRankings(html) {
 async function saveTeamRankings(data, style, rankingType) {
   const formats = Object.keys(data);
   for (const format of formats) {
+    const cacheKey = `teamRanking-${rankingType}-${format}`
+    const teams = [];
     for (const team of data[format]) {
       const teamObj = await Team.findOne({
         name: { $regex: new RegExp(`^${team.Team}$`, "i") },
@@ -129,51 +134,42 @@ async function saveTeamRankings(data, style, rankingType) {
       const teamRanking = {
         style: style,
         rankingType: rankingType,
-        team: teamObj?._id,
+        team: {
+          image: teamObj.image_path,
+          _id: teamObj._id
+        },
         name: team.Team,
         rating: team.Rating,
         points: team.Points,
         position: team.Position,
         type: format,
       };
-      const rankings = await TeamRankings.updateOne(
-        {
-          // team: teamObj?._id,
-          type: format,
-          rankingType: rankingType,
-          name: team.Team,
-          position: team.Position,
-        },
-        teamRanking,
-        { upsert: true }
-      );
+      console.log("Team ranking " + teamRanking)
+      teams.push(teamRanking)
     }
+    await redisClient.set(cacheKey, JSON.stringify(players));
+
+
   }
 }
 async function saveRankings(data, style, rankingType) {
   const formats = Object.keys(data);
 
   for (const format of formats) {
+    const cacheKey = `playerRanking${style}-${rankingType}-${format}`
+    const players = [];
     for (const player of data[format]) {
       let playerObj = await PlayerNew.findOne({
         name: new RegExp(`^${player.Player}$`, "i"),
       });
-      if (!playerObj) {
-        const newPlayerId = uuidv4();
-        playerObj = await PlayerNew.create({
-          player_id: newPlayerId,
-          name: player.Player,
-          country: player.Country,
-        });
-        console.log(
-          `Created new player: ${player.Player} (ID: ${newPlayerId})`
-        );
-      }
 
       const playerRanking = {
         style: style,
         rankingType: rankingType,
-        player: playerObj?._id,
+        player: {
+          image: playerObj?.image,
+          _id: playerObj._id
+        },
         name: player.Player,
         rating: player.Rating,
         country: player.Country,
@@ -181,34 +177,33 @@ async function saveRankings(data, style, rankingType) {
         type: format,
         position: player.Position,
       };
+      console.log("Player ranking " + playerRanking)
 
-      await PlayerRankings.updateOne(
-        {
-          type: format,
-          rankingType: rankingType,
-          country: player.Country,
-          position: player.Position,
-        },
-        { $set: playerRanking },
-        { upsert: true }
-      );
+      players.push(playerRanking)
     }
+    await redisClient.set(cacheKey, JSON.stringify(players));
   }
 }
 
-(async () => {
+async function getRankings() {
+  console.log("Fetching Rankings ")
   const html = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/batting"
   );
+  console.log("Fetched men's batting")
   const womenBatting = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/batting"
   );
+  console.log("Fetched women's batting")
+
   const htmlBowling = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/bowling"
   );
+  console.log("Fetched men's batting")
   const womenBowling = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/bowling"
   );
+  console.log("Fetched women's bowling")
   const allRounder = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/all-rounder"
   );
@@ -221,23 +216,45 @@ async function saveRankings(data, style, rankingType) {
   const womenTeams = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/teams"
   );
+  console.log("Fetched all data")
   const data = await rankings(html.data);
+  await saveRankings(data, "Batting", "Men");
+  console.log("Saved men's batting")
+
   const dataBowling = await rankings(htmlBowling.data);
+  await saveRankings(dataBowling, "Bowling", "Men");
+
   const dataAllRounder = await rankings(allRounder.data);
+  await saveRankings(dataAllRounder, "All Rounder", "Men");
+
   const dataTeams = await teamRankings(teams.data);
+  await saveTeamRankings(dataTeams, "Teams", "Men");
+
   const dataWomenBatting = await rankings(womenBatting.data);
-  console.log("Women batting rankings " + JSON.stringify(dataWomenBatting));
+  await saveRankings(dataWomenBatting, "Batting", "Women");
+
   const dataWomenBowling = await rankings(womenBowling.data);
+  await saveRankings(dataWomenBowling, "Bowling", "Women");
+
   const dataWomenAllRounder = await rankings(womenAllRounder.data);
+  await saveRankings(dataWomenAllRounder, "All Rounder", "Women");
 
   const dataWomenTeams = await teamRankings(womenTeams.data);
-
-  await saveRankings(dataWomenBatting, "Batting", "Women");
-  await saveRankings(dataWomenBowling, "Bowling", "Women");
-  await saveRankings(dataWomenAllRounder, "All Rounder", "Women");
   await saveTeamRankings(dataWomenTeams, "Teams", "Women");
-  await saveRankings(data, "Batting", "Men");
-  await saveRankings(dataBowling, "Bowling", "Men");
-  await saveRankings(dataAllRounder, "All Rounder", "Men");
-  await saveTeamRankings(dataTeams, "Teams", "Men");
-})();
+
+}
+
+
+async function runRankingsJob() {
+  try {
+    await getRankings();
+  } catch (err) {
+    console.error("Failed to fetch rankings", err);
+  }
+
+  setTimeout(runRankingsJob, 86400000);
+}
+
+module.exports = {
+  runRankingsJob
+}

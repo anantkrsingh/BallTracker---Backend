@@ -45,13 +45,14 @@ async function fetchAndSaveSeries(url = SERIES_ENDPOINT) {
 
     let series = await Series.find({}).lean();
 
-    series.forEach(async (ser) => {
+    for (const ser of series) {
+      console.log("Fetching data of " + ser.series_id + " " + ser.series);
       await fetchSeriesVenues(ser.series_id, ser._id);
       await fetchSeriesPointsTable(ser.series_id);
       await fetchSeriesSquads(ser.series_id, ser._id);
       await fetchSeriesUpcomingMatches(ser.series_id);
       await fetchSeriesMatches(ser.series_id);
-    });
+    }
 
     return series;
   } catch (error) {
@@ -339,11 +340,23 @@ async function fetchMatchScorecard(matchId) {
     const playerIds = new Set();
 
     // Collect player IDs from batsmen and bowlers
-    Object.keys(scorecard.scorecard).forEach((inningKey) => {
+    const scorecardKeys = Object.keys(scorecard.scorecard);
+
+    for (const inningKey of scorecardKeys) {
       const inning = scorecard.scorecard[inningKey];
-      inning.batsman?.forEach((batsman) => playerIds.add(batsman.player_id));
-      inning.bolwer?.forEach((bowler) => playerIds.add(bowler.player_id));
-    });
+
+      if (inning.batsman) {
+        for (const batsman of inning.batsman) {
+          playerIds.add(batsman.player_id);
+        }
+      }
+
+      if (inning.bolwer) {
+        for (const bowler of inning.bolwer) {
+          playerIds.add(bowler.player_id);
+        }
+      }
+    }
 
     // Fetch or create player documents
     await Promise.all(
@@ -522,13 +535,16 @@ async function getSeriesOverview(req, res) {
 
     // Group matches by match type
     const matchesByType = {};
-    matches.forEach((match) => {
+    for (const match of matches) {
       const matchType = match.match_type || "Unknown";
+
       if (!matchesByType[matchType]) {
         matchesByType[matchType] = [];
       }
+
       matchesByType[matchType].push(match);
-    });
+    }
+
 
     const result = {};
 
@@ -539,23 +555,22 @@ async function getSeriesOverview(req, res) {
       let highest;
 
       const playerIds = new Set();
-      typeMatches.forEach((match) => {
+      for (const match of typeMatches) {
         if (match.scorecard && match.scorecard.innings) {
-          match.scorecard.innings.forEach((inning) => {
+          for (const inning of match.scorecard.innings) {
             if (inning.batsmen) {
-              inning.batsmen.forEach((batsman) => {
+              for (const batsman of inning.batsmen) {
                 playerIds.add(batsman.player);
-              });
+              }
             }
             if (inning.bowlers) {
-              inning.bowlers.forEach((bowler) => {
+              for (const bowler of inning.bowlers) {
                 playerIds.add(bowler.player);
-              });
+              }
             }
-          });
+          }
         }
-      });
-
+      }
       const players = await Player.find({
         _id: { $in: Array.from(playerIds) },
       });
@@ -715,7 +730,7 @@ async function getSeriesOverview(req, res) {
           avg:
             bowlerRankings[playerId].totalWickets > 0
               ? bowlerRankings[playerId].totalRuns /
-                bowlerRankings[playerId].totalWickets
+              bowlerRankings[playerId].totalWickets
               : Infinity,
           team: bowlerRankings[playerId].team,
         }))
@@ -729,7 +744,7 @@ async function getSeriesOverview(req, res) {
           image: bowlerRankings[playerId].image,
           avg:
             bowlerRankings[playerId].totalRuns /
-              bowlerRankings[playerId].totalWickets || 1,
+            bowlerRankings[playerId].totalWickets || 1,
           team: bowlerRankings[playerId].team,
         }))
         .sort((a, b) => b.totalWickets - a.totalWickets);
@@ -742,7 +757,7 @@ async function getSeriesOverview(req, res) {
           image: bowlerRankings[playerId].image,
           avg:
             bowlerRankings[playerId].totalRuns /
-              bowlerRankings[playerId].totalWickets || 1,
+            bowlerRankings[playerId].totalWickets || 1,
           team: bowlerRankings[playerId].team,
           fiveWickets: bowlerRankings[playerId].fiveWickets,
           innings: bowlerRankings[playerId].innings,
@@ -875,7 +890,6 @@ async function getSeriesTeamSquads(req, res) {
     const cacheKey = `seriesTeamSquads:${squadId}:${id}`;
     const TTL_10_HRS = 60 * 60 * 10;
 
-    // Check cache first
     const cached = await redis.get(cacheKey);
     if (cached) {
       return res.status(200).json({ data: JSON.parse(cached) });
@@ -938,6 +952,12 @@ async function getSeriesPointsTable(req, res) {
   }
 }
 
+const fetchSeriesData = () => {
+  setInterval(() => {
+    fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
+  }, 60000);
+};
+
 module.exports = {
   fetchAndSaveSeries,
   getSeries,
@@ -948,4 +968,5 @@ module.exports = {
   getSeriesSquads,
   fetchMatchScorecard,
   getPlayerData,
+  fetchSeriesData
 };
