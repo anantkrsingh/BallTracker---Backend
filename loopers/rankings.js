@@ -97,7 +97,7 @@ const model = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-pro",
   temperature: 0,
   apiKey:
-    process.env.GOOGLE_API_KEY || `AIzaSyCqb0NIA63NtjEUjJBf_fCjbZYuRwJyVVw`,
+    process.env.GOOGLE_API_KEY || `AIzaSyC7_P2LLw2D5Q5w79iJTAWSoSvK5nQTAEs`,
 });
 
 async function rankings(html) {

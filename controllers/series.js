@@ -497,8 +497,7 @@ async function getSeries(req, res) {
       return res.status(200).json({ data: JSON.parse(cached) });
     }
 
-    const freshList = await fetchAndSaveSeries();
-
+    const freshList = await Series.find({}).lean();
     await redis.setEx(CACHE_KEY, TTL_5_HRS, JSON.stringify(freshList));
 
     return res.status(200).json({ data: freshList });
@@ -544,7 +543,6 @@ async function getSeriesOverview(req, res) {
 
       matchesByType[matchType].push(match);
     }
-
 
     const result = {};
 
@@ -730,7 +728,7 @@ async function getSeriesOverview(req, res) {
           avg:
             bowlerRankings[playerId].totalWickets > 0
               ? bowlerRankings[playerId].totalRuns /
-              bowlerRankings[playerId].totalWickets
+                bowlerRankings[playerId].totalWickets
               : Infinity,
           team: bowlerRankings[playerId].team,
         }))
@@ -744,7 +742,7 @@ async function getSeriesOverview(req, res) {
           image: bowlerRankings[playerId].image,
           avg:
             bowlerRankings[playerId].totalRuns /
-            bowlerRankings[playerId].totalWickets || 1,
+              bowlerRankings[playerId].totalWickets || 1,
           team: bowlerRankings[playerId].team,
         }))
         .sort((a, b) => b.totalWickets - a.totalWickets);
@@ -757,7 +755,7 @@ async function getSeriesOverview(req, res) {
           image: bowlerRankings[playerId].image,
           avg:
             bowlerRankings[playerId].totalRuns /
-            bowlerRankings[playerId].totalWickets || 1,
+              bowlerRankings[playerId].totalWickets || 1,
           team: bowlerRankings[playerId].team,
           fiveWickets: bowlerRankings[playerId].fiveWickets,
           innings: bowlerRankings[playerId].innings,
@@ -955,7 +953,7 @@ async function getSeriesPointsTable(req, res) {
 const fetchSeriesData = () => {
   setInterval(() => {
     fetchAndSaveSeries(`${API_URL}seriesList${API_KEY}`);
-  }, 7200000); 
+  }, 7200000);
 };
 
 module.exports = {
@@ -968,5 +966,5 @@ module.exports = {
   getSeriesSquads,
   fetchMatchScorecard,
   getPlayerData,
-  fetchSeriesData
+  fetchSeriesData,
 };
