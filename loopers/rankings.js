@@ -135,8 +135,8 @@ async function saveTeamRankings(data, style, rankingType) {
         style: style,
         rankingType: rankingType,
         team: {
-          image: teamObj.image_path,
-          _id: teamObj._id
+          image: teamObj?.image_path,
+          _id: teamObj?._id
         },
         name: team.Team,
         rating: team.Rating,
@@ -168,7 +168,7 @@ async function saveRankings(data, style, rankingType) {
         rankingType: rankingType,
         player: {
           image: playerObj?.image,
-          _id: playerObj._id
+          _id: playerObj?._id
         },
         name: player.Player,
         rating: player.Rating,
