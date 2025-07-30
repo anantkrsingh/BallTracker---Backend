@@ -147,7 +147,7 @@ async function saveTeamRankings(data, style, rankingType) {
       console.log("Team ranking " + teamRanking)
       teams.push(teamRanking)
     }
-    await redisClient.set(cacheKey, JSON.stringify(players));
+    await redisClient.set(cacheKey, JSON.stringify(teams));
 
 
   }
