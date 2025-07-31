@@ -247,7 +247,7 @@ async function getRankings() {
 
 async function runRankingsJob() {
   try {
-    await getRankings();
+    // await getRankings();
   } catch (err) {
     console.error("Failed to fetch rankings", err);
   }

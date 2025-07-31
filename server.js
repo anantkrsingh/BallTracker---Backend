@@ -11,7 +11,7 @@ const setupWebSocketEvents = require("./websocket/events");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { startFetching } = require("./script");
-const { fetchSeriesData } = require("./controllers/series")
+const { fetchSeriesData } = require("./controllers/series");
 require("./redis");
 require("./controllers/players");
 const { runRankingsJob } = require("./loopers/rankings");
@@ -34,7 +34,8 @@ app.use("/api/match", require("./routes/match"));
 
 app.use("/api/auth", async (req, res) => {
   const appSig = req.headers["x-app-signature"];
-
+  const homepage = await redisClient.get("homepage");
+  const series = await redisClient.get("series");
   console.log(appSig);
 
   if (
@@ -51,6 +52,8 @@ app.use("/api/auth", async (req, res) => {
 
   return res.status(200).json({
     token,
+    homepage: JSON.parse(homepage),
+    series: JSON.parse(series),
   });
 });
 
@@ -69,12 +72,11 @@ const startServer = async () => {
 
     require("./loopers/homepage");
 
-
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
-      fetchSeriesData()
-      runRankingsJob()
+      fetchSeriesData();
+      runRankingsJob();
     });
   } catch (error) {
     console.error("Failed to start server:", error);

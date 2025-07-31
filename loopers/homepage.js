@@ -235,11 +235,12 @@ async function getShorts() {
 const startDataFetching = (websocketServer) => {
   wss = websocketServer;
   setInterval(() => {
+    console.log("Fetching data");
     getHomepage();
     getSeries();
     // getShorts()
     // fetchUpcomingMatches();
-  }, 3600000);
+  }, 4000);
 };
 
 
