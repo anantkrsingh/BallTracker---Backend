@@ -4,6 +4,7 @@ const startDataFetching = require("../loopers/homepage");
 const { getLiveMatch, initializeLiveUpdates } = require("../loopers/live");
 const { getSquads } = require("../loopers/info");
 const Config = require("../models/config");
+const { getMatchInfo } = require("../controllers/matches");
 
 const connectedUsers = new Map();
 const rooms = new Map();
@@ -121,7 +122,6 @@ const setupWebSocketEvents = (wss) => {
 
             console.log("New user joined room", matchId);
 
-            // Safely create or get room
             let room = rooms.get(matchId);
             if (!room) {
               room = [];
@@ -136,8 +136,15 @@ const setupWebSocketEvents = (wss) => {
               userRooms.set(currentUser, matchId);
             }
 
-            // Get cached data from Redis and safely parse
             const cacheData = await redisClient.get(matchId);
+            const cacheKey = `match:${matchId}`;
+            const cachedMatch = await redisClient.get(cacheKey);
+            let match = cachedMatch ? JSON.parse(cachedMatch) : null;
+
+            if (!match) {
+              match = await getMatchInfo(matchId);
+            }
+
             let parsedCache = null;
 
             if (cacheData) {
@@ -151,16 +158,15 @@ const setupWebSocketEvents = (wss) => {
                 );
               }
             }
-
             if (!parsedCache || !parsedCache.status) {
               const data = await getLiveMatch(matchId);
-
-              try {
-                await getSquads(matchId); // Awaiting in case it's important
-              } catch (err) {
-                console.warn("Failed to get squads for match:", matchId, err);
-              }
-
+              ws.send(
+                JSON.stringify({
+                  type: "match_info" + matchId,
+                  message: "Match info fetched successfully",
+                  data: match,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   type: "live_match" + matchId,
@@ -169,6 +175,13 @@ const setupWebSocketEvents = (wss) => {
                 })
               );
             } else {
+              ws.send(
+                JSON.stringify({
+                  type: "match_info" + matchId,
+                  message: "Match info fetched successfully",
+                  data: match,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   type: "live_match" + matchId,

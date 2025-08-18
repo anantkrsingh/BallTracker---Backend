@@ -5,6 +5,52 @@ const axios = require("axios");
 const Scorecard = require("../models/scorecard");
 const API_URL = process.env.API_URL || "";
 const API_KEY = process.env.API_KEY || "";
+
+const livematchMap = new Map();
+
+async function fetchHomePageMatches(req, res) {
+  const cacheKey = `homepage`;
+
+  const cachedData = await redisClient.get(cacheKey);
+  if (cachedData) {
+    return res.status(200).json(JSON.parse(cachedData));
+  }
+
+  return res.status(200).json([]);
+}
+
+async function fetchLiveMatchData(req, res) {
+  const matchId = req.query.matchId;
+  livematchMap.set(matchId, Date.now());
+
+  const cacheKey = `livematch:${matchId}`;
+  const cachedData = await redisClient.get(cacheKey);
+  if (cachedData) {
+    return res.status(200).json(JSON.parse(cachedData));
+  } else {
+    const formData = new FormData();
+    formData.append("match_id", matchId);
+
+    const response = await axios.post(
+      `${API_URL}liveMatch${API_KEY}`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    if (response.data.status) {
+      await redisClient.set(cacheKey, JSON.stringify(response.data));
+      return res.status(200).json(response.data);
+    } else {
+      return res.status(400).json({ error: "Failed to fetch live match data" });
+    }
+  }
+}
+
 async function getMatches(req, res) {
   try {
     const { match_type, match_status, page, limit } = req.query;
@@ -12,7 +58,9 @@ async function getMatches(req, res) {
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
 
-    const cacheKey = `matches:${match_type || "all"}:${match_status || "all"}:${pageNumber}:${pageSize}`;
+    const cacheKey = `matches:${match_type || "all"}:${
+      match_status || "all"
+    }:${pageNumber}:${pageSize}`;
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -38,12 +86,9 @@ async function getMatches(req, res) {
     matchData.sort((a, b) => {
       const aDate = new Date(a.date_wise?.split(",")[0]);
       const bDate = new Date(b.date_wise?.split(",")[0]);
-    
-      return match_status === "Upcoming"
-        ? aDate - bDate 
-        : bDate - aDate; 
+
+      return match_status === "Upcoming" ? aDate - bDate : bDate - aDate;
     });
-    
 
     const totalMatches = matchData.length;
     const totalPages = Math.ceil(totalMatches / pageSize);
@@ -92,6 +137,82 @@ async function getMatches(req, res) {
   }
 }
 
+async function getMatchInfo(match_id) {
+  const formData = new FormData();
+  formData.append("match_id", match_id);
+
+  const API_URL = process.env.API_URL || "";
+  const API_KEY = process.env.API_KEY || "";
+
+  const matchResponse = await axios.post(
+    `${API_URL}matchInfo${API_KEY}`,
+    formData,
+    {
+      headers: {
+        ...formData.getHeaders(),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    }
+  );
+
+  if (!matchResponse.data.status || !matchResponse.data.data) {
+    console.log(matchResponse.data);
+    return null;
+  }
+
+  const apiData = matchResponse.data.data;
+
+  const matchData = {
+    match_id: parseInt(match_id),
+    series_id: apiData.series_id,
+    series: apiData.series,
+    is_impact: apiData.is_impact,
+    matchs: apiData.matchs,
+    match_date: apiData.match_date,
+    match_time: apiData.match_time,
+    venue_id: apiData.venue_id,
+    venue: apiData.venue,
+    is_hundred: apiData.is_hundred,
+    place: apiData.place,
+    venue_weather: apiData.venue_weather,
+    toss: apiData.toss,
+    umpire: apiData.umpire,
+    third_umpire: apiData.third_umpire,
+    referee: apiData.referee,
+    man_of_match: apiData.man_of_match,
+    man_of_match_player: apiData.man_of_match_player,
+    match_type: apiData.match_type,
+    match_status: apiData.match_status,
+    result: apiData.result,
+    team_a_id: apiData.team_a_id,
+    team_a: {
+      team_id: apiData.team_a_id,
+      name: apiData.team_a,
+      short_name: apiData.team_a_short,
+      img: apiData.team_a_img,
+    },
+    team_a_short: apiData.team_a_short,
+    team_a_img: apiData.team_a_img,
+    team_b_id: apiData.team_b_id,
+    team_b: {
+      team_id: apiData.team_b_id,
+      name: apiData.team_b,
+      short_name: apiData.team_b_short,
+      img: apiData.team_b_img,
+    },
+    team_b_short: apiData.team_b_short,
+    team_b_img: apiData.team_b_img,
+  };
+
+  const match = await Match.findOneAndUpdate(
+    { match_id: parseInt(match_id) },
+    matchData,
+    { new: true, upsert: true }
+  );
+
+  return match;
+}
+
 async function getMatch(req, res) {
   try {
     const { match_id } = req.params;
@@ -103,76 +224,11 @@ async function getMatch(req, res) {
       const match = JSON.parse(cachedMatch);
       return res.status(200).json({ match });
     }
-    const formData = new FormData();
-    formData.append("match_id", match_id);
-
-    const API_URL = process.env.API_URL || "";
-    const API_KEY = process.env.API_KEY || "";
-
-    const matchResponse = await axios.post(
-      `${API_URL}matchInfo${API_KEY}`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
-
-    if (!matchResponse.data.status || !matchResponse.data.data) {
-      console.log(matchResponse.data);
+    const match = await getMatchInfo(match_id);
+    if (!match) {
       return res.status(404).json({ error: "Match not found" });
     }
 
-    const apiData = matchResponse.data.data;
-
-    const matchData = {
-      match_id: parseInt(match_id),
-      series_id: apiData.series_id,
-      series: apiData.series,
-      is_impact: apiData.is_impact,
-      matchs: apiData.matchs,
-      match_date: apiData.match_date,
-      match_time: apiData.match_time,
-      venue_id: apiData.venue_id,
-      venue: apiData.venue,
-      is_hundred: apiData.is_hundred,
-      place: apiData.place,
-      venue_weather: apiData.venue_weather,
-      toss: apiData.toss,
-      umpire: apiData.umpire,
-      third_umpire: apiData.third_umpire,
-      referee: apiData.referee,
-      man_of_match: apiData.man_of_match,
-      man_of_match_player: apiData.man_of_match_player,
-      match_type: apiData.match_type,
-      match_status: apiData.match_status,
-      result: apiData.result,
-      team_a_id: apiData.team_a_id,
-      team_a: {
-        team_id: apiData.team_a_id,
-        name: apiData.team_a,
-        short_name: apiData.team_a_short,
-        img: apiData.team_a_img,
-      },
-      team_a_short: apiData.team_a_short,
-      team_a_img: apiData.team_a_img,
-      team_b_id: apiData.team_b_id,
-      team_b: {
-        team_id: apiData.team_b_id,
-        name: apiData.team_b,
-        short_name: apiData.team_b_short,
-        img: apiData.team_b_img,
-      },
-      team_b_short: apiData.team_b_short,
-      team_b_img: apiData.team_b_img,
-    };
-    const match = await Match.findOneAndUpdate(
-      { match_id: parseInt(match_id) },
-      matchData,
-      { new: true, upsert: true }
-    );
     await redisClient.setEx(cacheKey, 600, JSON.stringify(match));
     res.status(200).json({ match });
   } catch (error) {
@@ -415,6 +471,26 @@ async function clearScorecardCache(matchId) {
   }
 }
 
+async function refreshLiveMatchData(matchId) {
+  const cacheKey = `livematch:${matchId}`;
+  const formData = new FormData();
+  formData.append("match_id", matchId);
+
+  const response = await axios.post(`${API_URL}liveMatch${API_KEY}`, formData);
+
+  if (response.data.status) {
+    await redisClient.set(cacheKey, JSON.stringify(response.data));
+  }
+}
+
+setInterval(() => {
+  livematchMap.forEach((timestamp, matchId) => {
+    if (Date.now() - timestamp < 5000) {
+      refreshLiveMatchData(matchId);
+    }
+  });
+}, 2000);
+
 module.exports = {
   getMatches,
   getMatch,
@@ -424,4 +500,7 @@ module.exports = {
   getMatchSquads,
   getMatchCommentary,
   getMatchFeeds,
+  getMatchInfo,
+  fetchHomePageMatches,
+  fetchLiveMatchData,
 };

@@ -40,27 +40,31 @@ const getHomepage = async () => {
       finished: [],
     };
 
+    
+
     for (match of response.data.data) {
       if (match.match_status === "Live") {
         homeMatches.live.push(match);
+      }
+      else if (match.match_status === "Finished") {
+        console.log("Finished match", match.match_id);
+        homeMatches.finished.push(match);
       } else if (
         match.match_status === "Upcoming" &&
         homeMatches.upcoming.length < 5
       ) {
         homeMatches.upcoming.push(match);
-      } else if (match.status === "Finished") {
-        homeMatches.finished.push(match);
-      }
+      } 
     }
 
     if (homepage) {
       const oldData = JSON.parse(homepage);
       if (JSON.stringify(oldData) !== JSON.stringify(homeMatches)) {
-        notifyClients("homepage_list", homeMatches);
+        redisClient.set("homepage", JSON.stringify(homeMatches));
       }
+    } else {
+      redisClient.set("homepage", JSON.stringify(homeMatches));
     }
-
-    redisClient.set("homepage", JSON.stringify(homeMatches));
   } catch (error) {
     console.log(error);
   }
@@ -208,7 +212,6 @@ async function fetchUpcomingMatches() {
   }
 }
 
-
 async function getShorts() {
   try {
     const response = await axios.get(`${API_URL}news${API_KEY}`);
@@ -235,15 +238,13 @@ async function getShorts() {
 const startDataFetching = (websocketServer) => {
   wss = websocketServer;
   setInterval(() => {
-    console.log("Fetching data");
     getHomepage();
-    getSeries();
     // getShorts()
     // fetchUpcomingMatches();
-  }, 4000);
+  }, 2000);
+  setInterval(() => {
+    getSeries();
+  }, 10000);
 };
-
-
-
 
 module.exports = startDataFetching;
