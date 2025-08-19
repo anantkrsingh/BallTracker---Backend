@@ -390,7 +390,8 @@ async function getMatchCommentary(req, res) {
 
 async function getMatchScorecard(req, res) {
   try {
-    const { match_id, match_status } = req.params;
+    const { match_id  } = req.params;
+    const {match_status} = req.query
 
     const cacheKey = `scorecard:${match_id}`;
     const cachedScorecard = await redisClient.get(cacheKey);
