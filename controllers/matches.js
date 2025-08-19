@@ -108,6 +108,7 @@ async function getMatches(req, res) {
 
     const matchesByDate = {};
     paginatedMatches.forEach((match) => {
+      saveMatchScorecard(match.match_id);
       const date = match.date_wise?.split(",")[0];
       if (date) {
         if (!matchesByDate[date]) {
@@ -150,6 +151,7 @@ async function getMatches(req, res) {
 
 async function getMatchInfo(match_id) {
   const formData = new FormData();
+  saveMatchScorecard(match_id);
   formData.append("match_id", match_id);
 
   const API_URL = process.env.API_URL || "";
@@ -438,6 +440,56 @@ async function getMatchScorecard(req, res) {
   }
 }
 
+async function saveMatchScorecard(match_id) {
+  try {
+    const cacheKey = `scorecard:${match_id}`;
+    const cachedScorecard = await redisClient.get(cacheKey);
+
+    if (cachedScorecard) {
+      const scorecard = JSON.parse(cachedScorecard);
+      return true;
+    } else {
+      const { fetchMatchScorecard } = require("./series");
+
+      await fetchMatchScorecard(parseInt(match_id));
+    }
+
+    const existingScorecard = await Scorecard.findOne({
+      matchId: parseInt(match_id),
+    })
+      .populate({
+        path: "innings.batsmen.player",
+        model: "Player",
+      })
+      .populate({
+        path: "innings.bowlers.player",
+        model: "Player",
+      })
+      .populate({
+        path: "innings.fallwicket.player",
+        model: "Player",
+      })
+      .populate({
+        path: "innings.partnership.player_a_id",
+        model: "Player",
+      })
+      .populate({
+        path: "innings.partnership.player_b_id",
+        model: "Player",
+      });
+
+    if (existingScorecard) {
+      await redisClient.setEx(cacheKey, 600, JSON.stringify(existingScorecard));
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+}
+
 async function getMatchFeeds(req, res) {
   try {
     const { matchId } = req.params;
@@ -481,8 +533,6 @@ async function clearScorecardCache(matchId) {
     console.log("Error clearing scorecard cache:", error);
   }
 }
-
-
 
 module.exports = {
   getMatches,
