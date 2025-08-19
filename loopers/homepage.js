@@ -294,14 +294,20 @@ async function getShorts() {
 
 const startDataFetching = (websocketServer) => {
   wss = websocketServer;
+  getHomepage();
+  getSeries();
+  getShorts();
+  fetchUpcomingMatches();
   setInterval(() => {
     getHomepage();
-    // getShorts()
-    // fetchUpcomingMatches();
   }, 2000);
   setInterval(() => {
     getSeries();
   }, 10000);
+  setInterval(() => {
+    getShorts();
+    
+  }, 7200000);
 };
 
 module.exports = startDataFetching;

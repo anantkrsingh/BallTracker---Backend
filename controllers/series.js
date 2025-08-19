@@ -18,9 +18,11 @@ const { clearMatchCache } = require("./matches");
 
 async function fetchAndSaveSeries(url = SERIES_ENDPOINT) {
   try {
+    const cacheKey = `series:all`;
     const { data } = await axios.get(url);
 
     if (!data.status) throw new Error(`API error: `);
+
 
     const ops = data.data.map((s) => ({
       updateOne: {
@@ -44,6 +46,8 @@ async function fetchAndSaveSeries(url = SERIES_ENDPOINT) {
     if (ops.length) await Series.bulkWrite(ops);
 
     let series = await Series.find({}).lean();
+
+
 
     for (const ser of series) {
       console.log("Fetching data of " + ser.series_id + " " + ser.series);
@@ -464,10 +468,11 @@ async function getPlayerData(id, team) {
     });
 
     const playerData = response.data.data;
+    
 
     let dbPlayer = await Player.findOne({ player_id: id });
 
-    if (!dbPlayer) {
+    if (!dbPlayer && playerData && playerData.player) {
       const newPlayer = new Player({
         player_id: playerData.player.player_id,
         name: playerData.player.name,
