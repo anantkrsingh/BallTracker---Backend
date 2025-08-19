@@ -46,7 +46,7 @@ app.use("/api/auth", async (req, res) => {
 
   const secret = process.env.APP_SHA;
 
-  const token = jwt.sign({ token: uuidv4() }, secret, { expiresIn: "2h" });
+  const token = jwt.sign({ token: "token" }, secret, { expiresIn: "2h" });
 
   return res.status(200).json({
     token,
