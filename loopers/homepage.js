@@ -7,6 +7,7 @@ const newPlayer = require("../models/newPlayer");
 const { fetchAndSaveSeries } = require("../controllers/series");
 const Match = require("../models/match");
 const Shorts = require("../models/shorts");
+const { createHash } = require("crypto");
 let API_URL = process.env.API_URL;
 let API_KEY = process.env.API_KEY;
 let wss;
@@ -40,13 +41,10 @@ const getHomepage = async () => {
       finished: [],
     };
 
-    
-
     for (match of response.data.data) {
       if (match.match_status === "Live") {
         homeMatches.live.push(match);
-      }
-      else if (match.match_status === "Finished") {
+      } else if (match.match_status === "Finished") {
         console.log("Finished match", match.match_id);
         homeMatches.finished.push(match);
       } else if (
@@ -54,9 +52,12 @@ const getHomepage = async () => {
         homeMatches.upcoming.length < 5
       ) {
         homeMatches.upcoming.push(match);
-      } 
+      }
     }
-
+    const hash = createHash("md5")
+      .update(JSON.stringify(homeMatches))
+      .digest("hex");
+    redisClient.set("homepage:hash", hash);
     if (homepage) {
       const oldData = JSON.parse(homepage);
       if (JSON.stringify(oldData) !== JSON.stringify(homeMatches)) {
