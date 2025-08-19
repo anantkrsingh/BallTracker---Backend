@@ -94,7 +94,7 @@ HTML:
 );
 
 const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-pro",
+  model: "gemini-2.5-flash",
   temperature: 0,
   apiKey:
     process.env.GOOGLE_API_KEY || `AIzaSyC7_P2LLw2D5Q5w79iJTAWSoSvK5nQTAEs`,
@@ -247,7 +247,7 @@ async function getRankings() {
 
 async function runRankingsJob() {
   try {
-    // await getRankings();
+    await getRankings();
   } catch (err) {
     console.error("Failed to fetch rankings", err);
   }
