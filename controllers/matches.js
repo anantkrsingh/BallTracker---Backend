@@ -482,28 +482,7 @@ async function clearScorecardCache(matchId) {
   }
 }
 
-async function refreshLiveMatchData(matchId) {
-  const cacheKey = `livematch:${matchId}`;
-  const hashKey = `livematch:${matchId}:hash`;
-  const formData = new FormData();
-  formData.append("match_id", matchId);
 
-  const response = await axios.post(`${API_URL}liveMatch${API_KEY}`, formData);
-  const hash = createHash("md5").update(JSON.stringify(response.data)).digest("hex");
-
-  if (response.data.status) {
-    await redisClient.set(cacheKey, JSON.stringify(response.data));
-    await redisClient.set(hashKey, hash);
-  }
-}
-
-setInterval(() => {
-  livematchMap.forEach((timestamp, matchId) => {
-    if (Date.now() - timestamp < 5000) {
-      refreshLiveMatchData(matchId);
-    }
-  });
-}, 2000);
 
 module.exports = {
   getMatches,

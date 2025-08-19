@@ -12,6 +12,8 @@ let API_URL = process.env.API_URL;
 let API_KEY = process.env.API_KEY;
 let wss;
 
+let livematchMap = new Map();
+
 const notifyClients = (type, data) => {
   if (wss) {
     wss.clients.forEach((client) => {
@@ -28,6 +30,26 @@ const notifyClients = (type, data) => {
   }
 };
 
+async function refreshLiveMatchData(matchId) {
+  const cacheKey = `livematch:${matchId}`;
+  const formData = new FormData();
+  formData.append("match_id", matchId);
+
+  const response = await axios.post(`${API_URL}liveMatch${API_KEY}`, formData);
+
+  if (response.data.status) {
+    await redisClient.set(cacheKey, JSON.stringify(response.data));
+  }
+}
+
+setInterval(() => {
+  livematchMap.forEach((timestamp, matchId) => {
+    if (Date.now() - timestamp < 5000) {
+      refreshLiveMatchData(matchId);
+    }
+  });
+}, 2000);
+
 const getHomepage = async () => {
   if (!API_URL || !API_KEY) {
     return;
@@ -41,9 +63,25 @@ const getHomepage = async () => {
       finished: [],
     };
 
-    for (match of response.data.data) {
+    for (const match of response.data.data) {
       if (match.match_status === "Live") {
-        homeMatches.live.push(match);
+        livematchMap.set(match.match_id, Date.now());
+        const cacheKey = `livematch:${match.match_id}`;
+        const matchData = await redisClient.get(cacheKey);
+        if (matchData) {
+          homeMatches.live.push({ ...match, liveData: JSON.parse(matchData) });
+        } else {
+          const formData = new FormData();
+          formData.append("match_id", match.match_id);
+
+          const response = await axios.post(
+            `${API_URL}liveMatch${API_KEY}`,
+            formData
+          );
+          if (response.data.status) {
+            homeMatches.live.push({ ...match, liveData: response.data });
+          }
+        }
       } else if (match.match_status === "Finished") {
         console.log("Finished match", match.match_id);
         homeMatches.finished.push(match);
