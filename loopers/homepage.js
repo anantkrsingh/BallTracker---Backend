@@ -83,13 +83,31 @@ const getHomepage = async () => {
           }
         }
       } else if (match.match_status === "Finished") {
-        console.log("Finished match", match.match_id);
         homeMatches.finished.push(match);
       } else if (
         match.match_status === "Upcoming" &&
         homeMatches.upcoming.length < 5
       ) {
-        homeMatches.upcoming.push(match);
+        livematchMap.set(match.match_id, Date.now());
+        const cacheKey = `livematch:${match.match_id}`;
+        const matchData = await redisClient.get(cacheKey);
+        if (matchData) {
+          homeMatches.upcoming.push({
+            ...match,
+            liveData: JSON.parse(matchData),
+          });
+        } else {
+          const formData = new FormData();
+          formData.append("match_id", match.match_id);
+
+          const response = await axios.post(
+            `${API_URL}liveMatch${API_KEY}`,
+            formData
+          );
+          if (response.data.status) {
+            homeMatches.upcoming.push({ ...match, liveData: response.data });
+          }
+        }
       }
     }
     const hash = createHash("md5")
