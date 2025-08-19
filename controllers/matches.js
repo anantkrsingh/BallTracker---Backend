@@ -390,7 +390,7 @@ async function getMatchCommentary(req, res) {
 
 async function getMatchScorecard(req, res) {
   try {
-    const { match_id } = req.params;
+    const { match_id, match_status } = req.params;
 
     const cacheKey = `scorecard:${match_id}`;
     const cachedScorecard = await redisClient.get(cacheKey);
@@ -429,7 +429,15 @@ async function getMatchScorecard(req, res) {
       });
 
     if (existingScorecard) {
-      await redisClient.setEx(cacheKey, 600, JSON.stringify(existingScorecard));
+      if (match_status === "Finished") {
+        await redisClient.set(cacheKey, JSON.stringify(existingScorecard));
+      } else {
+        await redisClient.setEx(
+          cacheKey,
+          600,
+          JSON.stringify(existingScorecard)
+        );
+      }
       return res.status(200).json({ scorecard: existingScorecard });
     } else {
       return res.status(404).json({ error: "Scorecard not found" });
@@ -446,7 +454,6 @@ async function saveMatchScorecard(match_id) {
     const cachedScorecard = await redisClient.get(cacheKey);
 
     if (cachedScorecard) {
-      const scorecard = JSON.parse(cachedScorecard);
       return true;
     } else {
       const { fetchMatchScorecard } = require("./series");
