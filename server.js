@@ -34,9 +34,7 @@ app.use("/api/match", require("./routes/match"));
 
 app.use("/api/auth", async (req, res) => {
   const appSig = req.headers["x-app-signature"];
-  const homepage = await redisClient.get("homepage");
   const series = await redisClient.get("series");
-  console.log(appSig);
 
   if (
     !appSig ||
@@ -52,7 +50,6 @@ app.use("/api/auth", async (req, res) => {
 
   return res.status(200).json({
     token,
-    homepage: JSON.parse(homepage),
     series: JSON.parse(series),
   });
 });
