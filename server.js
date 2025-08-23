@@ -23,13 +23,13 @@ app.use(express.static("public"));
 app.use("/api/config", configRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/players", playersRouter);
-app.use("/api/pushToken", require("./routes/pushToken"));
 app.use("/api/news", require("./routes/news"));
 app.use("/api/series", require("./routes/series"));
 app.use("/api/venue", require("./routes/venue"));
 app.use("/api/playerRankings", require("./routes/rankings"));
 app.use("/api/teamRankings", require("./routes/teamRankings"));
 app.use("/api/match", require("./routes/match"));
+app.use("/api/pushToken", require("./routes/pushToken"));
 
 app.use("/api/auth", async (req, res) => {
   const appSig = req.headers["x-app-signature"];
@@ -68,7 +68,7 @@ const startServer = async () => {
 
     require("./loopers/homepage");
 
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
       fetchSeriesData();
