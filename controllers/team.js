@@ -108,7 +108,8 @@ async function getPaginatedTeams(req, res) {
 
 async function getTeamById(req, res) {
   const { teamId } = req.params;
-
+  const cacheKey = `team:${teamId}`;
+  const cachedData = await redisClient.get(cacheKey);
   try {
     const team = await Team.findOne({ id: teamId });
     if (team && team.squad) {

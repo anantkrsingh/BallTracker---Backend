@@ -9,7 +9,7 @@ const PlayerRankings = require("../models/playerRankings");
 const PlayerNew = require("../models/newPlayer");
 const Team = require("../models/team");
 const TeamRankings = require("../models/teamRankings");
-const redisClient = require("../redis")
+const redisClient = require("../redis");
 const Schema = z.object({
   Test: z.array(
     z.object({
@@ -105,11 +105,11 @@ async function rankings(html) {
     html: html,
     format_instructions: parser.getFormatInstructions(),
   });
-  console.log("Model invoked")
+  console.log("Model invoked");
 
   const response = await model.invoke(formattedPrompt);
   const data = parser.parse(response.content);
-  console.log("Got response from model")
+  console.log("Got response from model");
   return data;
 }
 async function teamRankings(html) {
@@ -125,7 +125,7 @@ async function teamRankings(html) {
 async function saveTeamRankings(data, style, rankingType) {
   const formats = Object.keys(data);
   for (const format of formats) {
-    const cacheKey = `teamRanking-${rankingType}-${format}`
+    const cacheKey = `teamRanking-${rankingType}-${format}`;
     const teams = [];
     for (const team of data[format]) {
       const teamObj = await Team.findOne({
@@ -136,7 +136,8 @@ async function saveTeamRankings(data, style, rankingType) {
         rankingType: rankingType,
         team: {
           image: teamObj?.image_path,
-          _id: teamObj?._id
+          _id: teamObj?._id,
+          id: teamObj?.id,
         },
         name: team.Team,
         rating: team.Rating,
@@ -144,19 +145,17 @@ async function saveTeamRankings(data, style, rankingType) {
         position: team.Position,
         type: format,
       };
-      console.log("Team ranking " + teamRanking)
-      teams.push(teamRanking)
+      console.log("Team ranking " + teamRanking);
+      teams.push(teamRanking);
     }
     await redisClient.set(cacheKey, JSON.stringify(teams));
-
-
   }
 }
 async function saveRankings(data, style, rankingType) {
   const formats = Object.keys(data);
 
   for (const format of formats) {
-    const cacheKey = `playerRanking${style}-${rankingType}-${format}`
+    const cacheKey = `playerRanking${style}-${rankingType}-${format}`;
     const players = [];
     for (const player of data[format]) {
       let playerObj = await PlayerNew.findOne({
@@ -168,7 +167,7 @@ async function saveRankings(data, style, rankingType) {
         rankingType: rankingType,
         player: {
           image: playerObj?.image,
-          _id: playerObj?._id
+          _id: playerObj?._id,
         },
         name: player.Player,
         rating: player.Rating,
@@ -177,33 +176,33 @@ async function saveRankings(data, style, rankingType) {
         type: format,
         position: player.Position,
       };
-      console.log("Player ranking " + playerRanking)
+      console.log("Player ranking " + playerRanking);
 
-      players.push(playerRanking)
+      players.push(playerRanking);
     }
     await redisClient.set(cacheKey, JSON.stringify(players));
   }
 }
 
 async function getRankings() {
-  console.log("Fetching Rankings ")
+  console.log("Fetching Rankings ");
   const html = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/batting"
   );
-  console.log("Fetched men's batting")
+  console.log("Fetched men's batting");
   const womenBatting = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/batting"
   );
-  console.log("Fetched women's batting")
+  console.log("Fetched women's batting");
 
   const htmlBowling = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/bowling"
   );
-  console.log("Fetched men's batting")
+  console.log("Fetched men's batting");
   const womenBowling = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/bowling"
   );
-  console.log("Fetched women's bowling")
+  console.log("Fetched women's bowling");
   const allRounder = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/men/all-rounder"
   );
@@ -216,10 +215,10 @@ async function getRankings() {
   const womenTeams = await axios.get(
     "https://www.cricbuzz.com/cricket-stats/icc-rankings/women/teams"
   );
-  console.log("Fetched all data")
+  console.log("Fetched all data");
   const data = await rankings(html.data);
   await saveRankings(data, "Batting", "Men");
-  console.log("Saved men's batting")
+  console.log("Saved men's batting");
 
   const dataBowling = await rankings(htmlBowling.data);
   await saveRankings(dataBowling, "Bowling", "Men");
@@ -241,9 +240,7 @@ async function getRankings() {
 
   const dataWomenTeams = await teamRankings(womenTeams.data);
   await saveTeamRankings(dataWomenTeams, "Teams", "Women");
-
 }
-
 
 async function runRankingsJob() {
   try {
@@ -256,5 +253,5 @@ async function runRankingsJob() {
 }
 
 module.exports = {
-  runRankingsJob
-}
+  runRankingsJob,
+};
