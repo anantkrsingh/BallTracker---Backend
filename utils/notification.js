@@ -1,6 +1,4 @@
-const ioredis = require("ioredis");
 const Bull = require("bull");
-const fetch = require("node-fetch");
 const { default: axios } = require("axios");
 
 const notificationQueue = new Bull("notifications", {
