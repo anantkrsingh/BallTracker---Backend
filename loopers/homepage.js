@@ -81,9 +81,7 @@ async function refreshLiveMatchData(matchId) {
     ) {
       for (const batsman of matchData.batsman) {
         if (
-          JSON.stringify(batsman) !==
-            JSON.stringify(oldData.data.batsman)
-               &&
+          JSON.stringify(batsman) !== JSON.stringify(oldData.data.batsman) &&
           Number(batsman.run) % 50 === 0
         ) {
           sendNotification({
@@ -100,16 +98,22 @@ async function refreshLiveMatchData(matchId) {
       }
     }
 
-    if (
-      JSON.stringify(matchData.lastwicket) !==
-      JSON.stringify(oldData.data.lastwicket)
-    ) {
-      if (matchData.lastwicket.player !== oldData.data.lastwicket.player) {
-        sendNotification({
-          title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
-          message: ` ${matchData.lastwicket.player} out, ${matchData.lastwicket.run} Runs , ${matchData.lastwicket.ball} Balls`,
-        });
-      }
+    const oldWickets =
+      matchData.batting_team === matchData.team_a_id
+        ? oldData.data.team_a_score?.wicket ?? 0
+        : oldData.data.team_b_score?.wicket ?? 0;
+
+    const newWickets =
+      matchData.batting_team === matchData.team_a_id
+        ? matchData.team_a_score?.wicket ?? 0
+        : matchData.team_b_score?.wicket ?? 0;
+
+    if (newWickets > oldWickets) {
+      const lw = matchData.lastwicket;
+      sendNotification({
+        title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
+        message: `${lw.player} out, ${lw.run} Runs, ${lw.ball} Balls`,
+      });
     }
 
     if (matchData.team_a_id === matchData.batting_team) {
