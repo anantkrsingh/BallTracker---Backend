@@ -28,7 +28,7 @@ const notifyRoomUsers = (matchId, data) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
-          type: "live_match"+matchId,
+          type: "live_match" + matchId,
           message: "Live match data updated",
           data: data,
         })
@@ -79,9 +79,7 @@ const getLiveMatch = async (matchId) => {
       } else {
         const oldData = JSON.parse(data);
         if (JSON.stringify(oldData) !== JSON.stringify(response.data)) {
-          console.log("Series data changed, notifying clients");
-          notifyRoomUsers(matchId, response.data);
-          // Clear match cache when live data changes
+          console.log("Live data changed, notifying clients");
           await clearMatchCache(matchId);
         }
       }
