@@ -33,6 +33,7 @@ const notifyClients = (type, data) => {
 };
 
 async function refreshLiveMatchData(matchId) {
+  console.log("Refreshing live match data for match id", matchId);
   const cacheKey = `livematch:${matchId}`;
   const formData = new FormData();
   formData.append("match_id", matchId);
@@ -41,6 +42,8 @@ async function refreshLiveMatchData(matchId) {
   const response = await axios.post(`${API_URL}liveMatch${API_KEY}`, formData);
 
   if (oldDataRaw !== JSON.stringify(response.data)) {
+    console.log("Live match data changed, notifying clients");
+
     const oldData = JSON.parse(oldDataRaw);
     const { toss: oldToss } = oldData.data;
     const matchData = response.data.data;
@@ -76,32 +79,34 @@ async function refreshLiveMatchData(matchId) {
       });
     }
 
-    if (
-      JSON.stringify(matchData.batsman) !== JSON.stringify(oldData.data.batsman)
-    ) {
+    if (JSON.stringify(matchData.batsman) !== JSON.stringify(oldData.data.batsman)) {
       for (const batsman of matchData.batsman) {
-        const runs = Number(batsman.run);
-    
-        if (
-          JSON.stringify(batsman) !== JSON.stringify(oldData.data.batsman) &&
-          (runs === 50 || runs === 100)
-        ) {
-          sendNotification({
-            title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${
-              runs === 50 ? "Halfway There" : "Century Complete"
-            }`,
-            message: `${batsman.name} - ${runs} Runs , ${batsman.ball} Balls 😀🙌 ✅`,
-          });
+        if (batsman.player_id === 0) continue; 
+        const oldBatsman = oldData.data.batsman.find(b => b.player_id === batsman.player_id);
+        if (oldBatsman) {
+          const oldRuns = Number(oldBatsman.run);
+          const newRuns = Number(batsman.run);
+          if ((oldRuns < 50 && newRuns >= 50) || (oldRuns < 100 && newRuns >= 100)) {
+            sendNotification({
+              title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${newRuns === 50 ? "Half-Century" : "Century"}`,
+              message: `${batsman.name} - ${newRuns} Runs, ${batsman.ball} Balls 🎉🏏`,
+            });
+          }
         }
       }
     }
     
-    if (JSON.stringify(matchData.lastwicket) !== JSON.stringify(oldData.data.lastwicket)) {
+    
+    if (
+      JSON.stringify(matchData.lastwicket) !== JSON.stringify(oldData.data.lastwicket) &&
+      matchData.lastwicket.player 
+    ) {
       sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
-        message: `${matchData.lastwicket.player} out, ${matchData.lastwicket.run} Runs, ${matchData.lastwicket.ball} Balls`,
+        title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Wicket!`,
+        message: `${matchData.lastwicket.player} out, ${matchData.lastwicket.run} Runs, ${matchData.lastwicket.ball} Balls 😢🏏`,
       });
     }
+    
 
     if (matchData.team_a_id === matchData.batting_team) {
       if (

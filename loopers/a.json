@@ -1,0 +1,250 @@
+{
+    "status": true,
+    "msg": "Data found.",
+    "data": {
+        "match_id": 9773,
+        "series_id": 639,
+        "tv_id": 34694028,
+        "is_hundred": 1,
+        "match_over": "20",
+        "min_rate": 1.27,
+        "max_rate": 1.28,
+        "fav_team": "ZIM",
+        "toss": "Zimbabwe have won the toss and have opted to bowl",
+        "result": "",
+        "match_type": "T20",
+        "powerplay": "",
+        "s_ovr": "10",
+        "s_min": "52",
+        "s_max": "53",
+        "team_a_id": 16,
+        "team_a": "Zimbabwe",
+        "team_a_short": "ZIM",
+        "team_a_img": "https://cricketchampion.co.in/webroot/img/teams/1534993308_team.png",
+        "team_b_id": 17,
+        "team_b": "Sri Lanka",
+        "team_b_short": "SL",
+        "team_b_img": "https://cricketchampion.co.in/webroot/img/teams/247428309_team.png",
+        "next_batsman": "-",
+        "current_inning": 1,
+        "batsman": [
+            {
+                "player_id": 2608,
+                "name": "Charith Asalanka*",
+                "img": "https://cricketchampion.co.in/webroot/img/players/1523698369_player.png",
+                "strike_status": 1,
+                "run": 11,
+                "ball": 10,
+                "fours": "1",
+                "sixes": "0",
+                "strike_rate": "110.00"
+            },
+            {
+                "player_id": 2605,
+                "name": "Dasun Shanaka",
+                "img": "https://cricketchampion.co.in/webroot/img/players/923684152_player.png",
+                "strike_status": 0,
+                "run": 4,
+                "ball": 9,
+                "fours": "0",
+                "sixes": "0",
+                "strike_rate": "44.44"
+            }
+        ],
+        "bolwer": {
+            "player_id": 6458,
+            "name": "Tinotenda Maposa",
+            "img": "https://cricketchampion.co.in/webroot/img/players/1247212520_player.png",
+            "run": 5,
+            "maiden": 0,
+            "over": "1.2",
+            "wicket": 0,
+            "economy": "3.75"
+        },
+        "first_circle": "1",
+        "second_circle": "",
+        "min_rate_1": 1.27,
+        "max_rate_1": 1.28,
+        "min_rate_2": 4.5,
+        "max_rate_2": 4.6,
+        "balling_team": "16",
+        "batting_team": "17",
+        "team_b_score": {
+            "team_id": 17,
+            "1": {
+                "score": 48,
+                "wicket": 5,
+                "ball": 56,
+                "over": "9.2"
+            }
+        },
+        "team_b_scores": "48-5",
+        "team_b_over": "9.2",
+        "team_b_scores_over": [
+            {
+                "score": "48-5",
+                "over": "9.2"
+            }
+        ],
+        "ball_rem": 64,
+        "need_run_ball": "",
+        "trail_lead": "",
+        "s_run": 5,
+        "s_ball": 4,
+        "s_history_1": [
+            {
+                "team_id": 17,
+                "over": "6",
+                "s_o_min": "52",
+                "s_min": "31",
+                "s_o_max": "54",
+                "s_max": "54",
+                "max_rate": 1.5,
+                "min_rate": 1.49,
+                "fav_team": "ZIM",
+                "wicket": 4,
+                "score": 37
+            },
+            {
+                "team_id": 17,
+                "over": "10",
+                "s_o_min": "62",
+                "s_min": "52",
+                "s_o_max": "64",
+                "s_max": "64",
+                "max_rate": "",
+                "min_rate": "",
+                "fav_team": "",
+                "wicket": "",
+                "score": ""
+            }
+        ],
+        "lambi_ovr": "20",
+        "lambi_min": "125",
+        "lambi_max": "127",
+        "partnership": {
+            "ball": 15,
+            "run": 10
+        },
+        "yet_to_bet": [
+            "Dushan Hemantha",
+            "Dushmantha Chameera",
+            "Maheesh Theekshana",
+            "Binura Fernando"
+        ],
+        "udrs": {
+            "team_a": {
+                "left": 2,
+                "pass": 0,
+                "fail": 0
+            },
+            "team_b": {
+                "left": 2,
+                "pass": 0,
+                "fail": 0
+            }
+        },
+        "c_team_score": 48,
+        "curr_rate": "5.14",
+        "last4overs": [
+            {
+                "over": 7,
+                "balls": [
+                    "0",
+                    "0",
+                    "1",
+                    "0",
+                    "W",
+                    "0"
+                ],
+                "runs": 1
+            },
+            {
+                "over": 8,
+                "balls": [
+                    "1",
+                    "0",
+                    "1",
+                    "1",
+                    "0",
+                    "0"
+                ],
+                "runs": 3
+            },
+            {
+                "over": 9,
+                "balls": [
+                    "1",
+                    "1",
+                    "1",
+                    "1",
+                    "0",
+                    "1"
+                ],
+                "runs": 5
+            },
+            {
+                "over": 10,
+                "balls": [
+                    "1",
+                    "1"
+                ],
+                "runs": 2
+            }
+        ],
+        "last36ball": [
+            "1",
+            "1"
+        ],
+        "projected_score": [
+            {
+                "over": 10,
+                "cur_rate": "5.14",
+                "cur_rate_score": 51,
+                "cur_rate_1": "5.00",
+                "cur_rate_1_score": 50,
+                "cur_rate_2": "6.00",
+                "cur_rate_2_score": 60,
+                "cur_rate_3": "7.00",
+                "cur_rate_3_score": 70
+            },
+            {
+                "over": 15,
+                "cur_rate": "5.14",
+                "cur_rate_score": 77,
+                "cur_rate_1": "5.00",
+                "cur_rate_1_score": 75,
+                "cur_rate_2": "6.00",
+                "cur_rate_2_score": 90,
+                "cur_rate_3": "7.00",
+                "cur_rate_3_score": 105
+            },
+            {
+                "over": 20,
+                "cur_rate": "5.14",
+                "cur_rate_score": 102,
+                "cur_rate_1": "5.00",
+                "cur_rate_1_score": 100,
+                "cur_rate_2": "6.00",
+                "cur_rate_2_score": 120,
+                "cur_rate_3": "7.00",
+                "cur_rate_3_score": 140
+            }
+        ],
+        "last_bolwer": {
+            "player_id": 3908,
+            "name": "Sean Williams",
+            "img": "https://cricketchampion.co.in/webroot/img/players/505274252_player.png",
+            "over": "1",
+            "run": 5,
+            "maiden": 0,
+            "wicket": 0,
+            "economy": "5.00"
+        },
+        "lastwicket": {
+            "player": "Kamindu Mendis",
+            "run": 0,
+            "ball": 4
+        }
+    }
+}
