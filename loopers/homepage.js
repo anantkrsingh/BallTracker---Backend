@@ -82,8 +82,8 @@ async function refreshLiveMatchData(matchId) {
       for (const batsman of matchData.batsman) {
         if (
           JSON.stringify(batsman) !== JSON.stringify(oldData.data.batsman) &&
-          Number(batsman.run) % 50 === 0 &&
-          Number(batsman.run) !== 0
+          Number(batsman.run) === 50 || Number(batsman.run) === 100
+          
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${
