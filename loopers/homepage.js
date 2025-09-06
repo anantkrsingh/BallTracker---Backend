@@ -80,25 +80,22 @@ async function refreshLiveMatchData(matchId) {
       JSON.stringify(matchData.batsman) !== JSON.stringify(oldData.data.batsman)
     ) {
       for (const batsman of matchData.batsman) {
+        const runs = Number(batsman.run);
+    
         if (
-          JSON.stringify(batsman) !== JSON.stringify(oldData.data.batsman.find((b) => b.player_id === batsman.player_id)) &&
-         ( Number(batsman.run) === 50 || Number(batsman.run) === 100)
-          
+          JSON.stringify(batsman) !== JSON.stringify(oldData.data.batsman) &&
+          (runs === 50 || runs === 100)
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${
-              Number(batsman.run) === 50
-                ? "Halfway There"
-                : Number(batsman.run) === 100
-                ? "Century Complete"
-                : ""
+              runs === 50 ? "Halfway There" : "Century Complete"
             }`,
-            message: `${batsman.name} - ${batsman.run} Runs , ${batsman.ball} Balls 😀🙌 ✅`,
+            message: `${batsman.name} - ${runs} Runs , ${batsman.ball} Balls 😀🙌 ✅`,
           });
         }
-        
       }
     }
+    
 
     const oldWickets =
       matchData.batting_team === matchData.team_a_id
