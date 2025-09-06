@@ -1,5 +1,6 @@
 const Bull = require("bull");
 const { default: axios } = require("axios");
+const pushTokens = require("../models/pushTokens");
 
 const notificationQueue = new Bull("notifications", {
   redis: {
@@ -11,9 +12,21 @@ function addNotification(title, message) {
   return notificationQueue.add({ title, message });
 }
 
-const PUSH_TOKENS = ["ExponentPushToken[vOVmiEPaVsDAfs_APAN9Sc]"];
+let PUSH_TOKENS = [];
+
+async function getPushTokens() {
+  const tokens = await pushTokens.find({});
+  PUSH_TOKENS = tokens.map((token) => token.pushToken);
+}
+
+setInterval(async () => {
+  await getPushTokens();
+}, 10000);
 
 async function sendNotification({ title, message }) {
+  if (PUSH_TOKENS.length === 0) {
+    await getPushTokens();
+  }
   console.log(title, message);
   addNotification(title, message);
 }
