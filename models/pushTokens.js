@@ -6,6 +6,13 @@ const tokenSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    toss: { type: Boolean, default: true },
+    wicket: { type: Boolean, default: false },
+    news: { type: Boolean, default: true },
+    match: { type: Boolean, default: true },
+    score: { type: Boolean, default: true },
+    stats: { type: Boolean, default: true },
+    result: { type: Boolean, default: true },
   },
   {
     timestamps: true,

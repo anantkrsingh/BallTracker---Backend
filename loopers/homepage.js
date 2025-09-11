@@ -33,128 +33,154 @@ const notifyClients = (type, data) => {
 };
 
 async function refreshLiveMatchData(matchId) {
-  console.log("Refreshing live match data for match id", matchId);
-  const cacheKey = `livematch:${matchId}`;
-  const formData = new FormData();
-  formData.append("match_id", matchId);
-  const oldDataRaw = await redisClient.get(cacheKey);
+  try {
+    console.log("Refreshing live match data for match id", matchId);
+    const cacheKey = `livematch:${matchId}`;
+    const formData = new FormData();
+    formData.append("match_id", matchId);
+    const oldDataRaw = await redisClient.get(cacheKey);
 
-  const response = await axios.post(`${API_URL}liveMatch${API_KEY}`, formData);
-
-  if (oldDataRaw !== JSON.stringify(response.data)) {
-    console.log("Live match data changed, notifying clients");
-
-    const oldData = JSON.parse(oldDataRaw);
-    const { toss: oldToss } = oldData.data;
-    const matchData = response.data.data;
-    const { toss } = matchData;
-    const { series } = await Series.findOne({ series_id: matchData.series_id });
-    if (oldToss !== toss) {
-      sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Toss updated`,
-        message: `${matchData.toss}`,
-      });
+    const response = await axios.post(
+      `${API_URL}liveMatch${API_KEY}`,
+      formData
+    );
+    if (response.data.status) {
+      await redisClient.set(cacheKey, JSON.stringify(response.data));
     }
-    if (
-      matchData.last36ball.length > 0 &&
-      oldData.data.last36ball.length === 0
-    ) {
-      sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Match started`,
-        message: `Catch the live Scorecard Betweeen ${matchData.team_a} VS ${matchData.team_b}  🙌🏏`,
-      });
-    }
+    if (oldDataRaw !== JSON.stringify(response.data)) {
+      console.log("Live match data changed, notifying clients");
 
-    if (matchData.current_inning !== oldData.data.current_inning) {
-      sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
-        message: ` ${oldData.data.current_inning}st Innings Complete, Target${matchData.target}`,
+      const oldData = JSON.parse(oldDataRaw);
+      const { toss: oldToss } = oldData.data;
+      const matchData = response.data.data;
+      const { toss } = matchData;
+      const { series } = await Series.findOne({
+        series_id: matchData.series_id,
       });
-    }
+      if (oldToss !== toss) {
+        sendNotification({
+          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Toss updated`,
+          message: `${matchData.toss}`,
+          type: "toss",
+        });
+      }
+      if (
+        matchData?.last36ball?.length > 0 &&
+        oldData.data?.last36ball?.length === 0
+      ) {
+        sendNotification({
+          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Match started`,
+          message: `Catch the live Scorecard Betweeen ${matchData.team_a} VS ${matchData.team_b}  🙌🏏`,
+          type: "match",
+        });
+      }
 
-    if (matchData.result !== oldData.data.result) {
-      sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
-        message: ` ${matchData.result}`,
-      });
-    }
+      if (matchData.current_inning !== oldData.data.current_inning) {
+        sendNotification({
+          title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
+          message: ` ${oldData.data.current_inning}st Innings Complete, Target${matchData.target}`,
+          type: "score",
+        });
+      }
 
-    if (JSON.stringify(matchData.batsman) !== JSON.stringify(oldData.data.batsman)) {
-      for (const batsman of matchData.batsman) {
-        if (batsman.player_id === 0) continue; 
-        const oldBatsman = oldData.data.batsman.find(b => b.player_id === batsman.player_id);
-        if (oldBatsman) {
-          const oldRuns = Number(oldBatsman.run);
-          const newRuns = Number(batsman.run);
-          if ((oldRuns < 50 && newRuns >= 50) || (oldRuns < 100 && newRuns >= 100)) {
-            sendNotification({
-              title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${newRuns === 50 ? "Half-Century" : "Century"}`,
-              message: `${batsman.name} - ${newRuns} Runs, ${batsman.ball} Balls 🎉🏏`,
-            });
+      if (matchData.result !== oldData.data.result) {
+        sendNotification({
+          title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
+          message: ` ${matchData.result}`,
+          type: "result",
+        });
+      }
+
+      if (
+        JSON.stringify(matchData.batsman) !==
+        JSON.stringify(oldData.data.batsman)
+      ) {
+        for (const batsman of matchData.batsman) {
+          if (batsman.player_id === 0) continue;
+          const oldBatsman = oldData.data.batsman.find(
+            (b) => b.player_id === batsman.player_id
+          );
+          if (oldBatsman) {
+            const oldRuns = Number(oldBatsman.run);
+            const newRuns = Number(batsman.run);
+            if (
+              (oldRuns < 50 && newRuns >= 50) ||
+              (oldRuns < 100 && newRuns >= 100)
+            ) {
+              sendNotification({
+                title: `${series} - ${matchData.team_a} vs ${
+                  matchData.team_b
+                } - ${newRuns === 50 ? "Half-Century" : "Century"}`,
+                message: `${batsman.name} - ${newRuns} Runs, ${batsman.ball} Balls 🎉🏏`,
+                type: "score",
+              });
+            }
           }
         }
       }
-    }
-    
-    
-    if (
-      JSON.stringify(matchData.lastwicket) !== JSON.stringify(oldData.data.lastwicket) &&
-      matchData.lastwicket.player 
-    ) {
-      sendNotification({
-        title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Wicket!`,
-        message: `${matchData.lastwicket.player} out, ${matchData.lastwicket.run} Runs, ${matchData.lastwicket.ball} Balls 😢🏏`,
-      });
-    }
-    
 
-    if (matchData.team_a_id === matchData.batting_team) {
       if (
-        Number(matchData.team_a_over) % 5 === 0 &&
-        matchData.match_type === "T20" &&
-        oldData.data.team_a_over !== matchData.team_a_over
+        JSON.stringify(matchData.lastwicket) !==
+          JSON.stringify(oldData.data.lastwicket) &&
+        matchData.lastwicket.player
       ) {
         sendNotification({
-          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
-          message: `${matchData.team_a} - ${matchData.team_a_scores} 🏏`,
+          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Wicket!`,
+          message: `${matchData.lastwicket.player} out, ${matchData.lastwicket.run} Runs, ${matchData.lastwicket.ball} Balls 😢🏏`,
+          type: "wicket",
         });
       }
-      if (
-        Number(matchData.team_a_over) % 10 === 0 &&
-        matchData.match_type != "T20" &&
-        oldData.data.team_a_over !== matchData.team_a_over
-      ) {
-        sendNotification({
-          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
-          message: `${matchData.team_a} - ${matchData.team_a_scores} 🏏`,
-        });
-      }
-    } else if (matchData.team_b_id === matchData.batting_team) {
-      if (
-        Number(matchData.team_b_over) % 5 === 0 &&
-        matchData.match_type === "T20" &&
-        oldData.data.team_b_over !== matchData.team_b_over
-      ) {
-        sendNotification({
-          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,
-          message: `${matchData.team_b} - ${matchData.team_b_scores} 🏏`,
-        });
-      }
-      if (
-        Number(matchData.team_b_over) % 10 === 0 &&
-        matchData.match_type != "T20" &&
-        oldData.data.team_b_over !== matchData.team_b_over
-      ) {
-        sendNotification({
-          title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,
-          message: `${matchData.team_b} - ${matchData.team_b_scores} 🏏`,
-        });
+
+      if (matchData.team_a_id === matchData.batting_team) {
+        if (
+          Number(matchData.team_a_over) % 5 === 0 &&
+          matchData.match_type === "T20" &&
+          oldData.data.team_a_over !== matchData.team_a_over
+        ) {
+          sendNotification({
+            title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
+            message: `${matchData.team_a} - ${matchData.team_a_scores} 🏏`,
+            type: "score",
+          });
+        }
+        if (
+          Number(matchData.team_a_over) % 10 === 0 &&
+          matchData.match_type != "T20" &&
+          oldData.data.team_a_over !== matchData.team_a_over
+        ) {
+          sendNotification({
+            title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
+            message: `${matchData.team_a} - ${matchData.team_a_scores} 🏏`,
+            type: "score",
+          });
+        }
+      } else if (matchData.team_b_id === matchData.batting_team) {
+        if (
+          Number(matchData.team_b_over) % 5 === 0 &&
+          matchData.match_type === "T20" &&
+          oldData.data.team_b_over !== matchData.team_b_over
+        ) {
+          sendNotification({
+            title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,
+            message: `${matchData.team_b} - ${matchData.team_b_scores} 🏏`,
+            type: "score",
+          });
+        }
+        if (
+          Number(matchData.team_b_over) % 10 === 0 &&
+          matchData.match_type != "T20" &&
+          oldData.data.team_b_over !== matchData.team_b_over
+        ) {
+          sendNotification({
+            title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,
+            message: `${matchData.team_b} - ${matchData.team_b_scores} 🏏`,
+            type: "score",
+          });
+        }
       }
     }
-  }
-
-  if (response.data.status) {
-    await redisClient.set(cacheKey, JSON.stringify(response.data));
+  } catch (error) {
+    console.log(error);
   }
 }
 

@@ -64,7 +64,7 @@ const LastOverSchema = new Schema({
 const LiveMatchSchema = new Schema({
     match_id: { type: Number, required: true, unique: true, index: true },
     series_id: { type: Number },
-    is_hundred: { type: Number, enum: [0, 1] }, // 1 if it's a "The Hundred" match
+    is_hundred: { type: Number, enum: [0, 1] },
     match_over: { type: String },
     fav_team: { type: String },
     toss: { type: String },

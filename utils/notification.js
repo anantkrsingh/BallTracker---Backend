@@ -8,40 +8,45 @@ const notificationQueue = new Bull("notifications", {
   },
 });
 
-function addNotification(title, message) {
-  return notificationQueue.add({ title, message });
+function addNotification(title, message, type) {
+  return notificationQueue.add({ title, message, type });
 }
 
 let PUSH_TOKENS = [];
 
 async function getPushTokens() {
   const tokens = await pushTokens.find({});
-  PUSH_TOKENS = tokens.map((token) => token.pushToken);
+  PUSH_TOKENS = tokens;
 }
 
 setInterval(async () => {
   await getPushTokens();
 }, 10000);
 
-async function sendNotification({ title, message }) {
+async function sendNotification({ title, message, type }) {
   if (PUSH_TOKENS.length === 0) {
     await getPushTokens();
   }
-  console.log(title, message);
-  addNotification(title, message);
+  console.log(title, message, type);
+  addNotification(title, message, type);
 }
 notificationQueue.process(async (job) => {
-  const { title, message } = job.data;
+  const { title, message, type } = job.data;
 
   const chunkSize = 100;
   for (let i = 0; i < PUSH_TOKENS.length; i += chunkSize) {
     const chunk = PUSH_TOKENS.slice(i, i + chunkSize);
 
-    const messages = chunk.map((token) => ({
-      to: token,
+    const filteredTokens = chunk.filter((token) => token[type]);
+
+    const messages = filteredTokens.map((token) => ({
+      to: token.pushToken,
       sound: "default",
       title,
       body: message,
+      data: {
+        type,
+      },
     }));
 
     try {
