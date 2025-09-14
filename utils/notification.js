@@ -13,24 +13,20 @@ function addNotification(title, message, type) {
   return notificationQueue.add({ title, message, type });
 }
 
-// Generate a unique cache key for each notification
 function generateNotificationCacheKey(title, message, type) {
   const { createHash } = require("crypto");
   const content = `${title}|${message}|${type}`;
   return `notification:${createHash("md5").update(content).digest("hex")}`;
 }
 
-// Check if notification was already sent
 async function isNotificationAlreadySent(title, message, type) {
   const cacheKey = generateNotificationCacheKey(title, message, type);
   const cached = await redisClient.get(cacheKey);
   return cached !== null;
 }
 
-// Mark notification as sent in cache
 async function markNotificationAsSent(title, message, type) {
   const cacheKey = generateNotificationCacheKey(title, message, type);
-  // Cache for 1 hour (3600 seconds) to prevent duplicates
   await redisClient.setEx(cacheKey, 3600, "sent");
 }
 
@@ -46,14 +42,12 @@ setInterval(async () => {
 }, 10000);
 
 async function sendNotification({ title, message, type }) {
-  // Check if notification was already sent
   const alreadySent = await isNotificationAlreadySent(title, message, type);
   if (alreadySent) {
     console.log("🚫 Duplicate notification prevented:", title, message, type);
     return;
   }
 
-  // Mark as sent immediately to prevent race conditions
   await markNotificationAsSent(title, message, type);
 
   if (PUSH_TOKENS.length === 0) {
@@ -64,12 +58,16 @@ async function sendNotification({ title, message, type }) {
 }
 notificationQueue.process(async (job) => {
   const { title, message, type } = job.data;
+  console.log("📨 Processing notification:", title, message, type);
 
   const chunkSize = 100;
   for (let i = 0; i < PUSH_TOKENS.length; i += chunkSize) {
+    console.log("📨 Sending notification batch:", title, message, type);
     const chunk = PUSH_TOKENS.slice(i, i + chunkSize);
 
     const filteredTokens = chunk.filter((token) => token[type]);
+
+     console.log(" Filtered tokens "+filteredTokens.length)
 
     const messages = filteredTokens.map((token) => ({
       to: token.pushToken,
@@ -80,13 +78,14 @@ notificationQueue.process(async (job) => {
         type,
       },
     }));
-
+    console.log("📨 Sending notification batch messages:", messages.length);
+    
     try {
+
       const response = await axios.post(
         "https://api.expo.dev/v2/push/send",
         messages
       );
-
       const data = await response.data;
       console.log("📨 Sent notification batch:", data);
     } catch (error) {
