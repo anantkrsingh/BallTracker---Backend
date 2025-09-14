@@ -13,6 +13,7 @@ const Series = require("../models/series");
 let API_URL = process.env.API_URL;
 let API_KEY = process.env.API_KEY;
 let wss;
+const liveLocks = new Map();
 
 let livematchMap = new Map();
 
@@ -31,6 +32,18 @@ const notifyClients = (type, data) => {
     });
   }
 };
+
+async function safeRefreshLiveMatchData(matchId) {
+  if (liveLocks.get(matchId)) return;
+  liveLocks.set(matchId, true);
+  try {
+    await refreshLiveMatchData(matchId);
+  } catch (err) {
+    console.error("Error refreshing", matchId, err);
+  } finally {
+    liveLocks.set(matchId, false);
+  }
+}
 
 async function refreshLiveMatchData(matchId) {
   try {
@@ -187,7 +200,7 @@ async function refreshLiveMatchData(matchId) {
 setInterval(() => {
   livematchMap.forEach((timestamp, matchId) => {
     if (Date.now() - timestamp < 5000) {
-      refreshLiveMatchData(matchId);
+      safeRefreshLiveMatchData(matchId);
     }
   });
 }, 2000);

@@ -43,10 +43,10 @@ const updateLiveMatches = async () => {
   for (const [matchId, users] of wss.rooms.entries()) {
     if (users.length > 0) {
       try {
-        const data = await getLiveMatch(matchId);
-        if (data && data.status) {
-          notifyRoomUsers(matchId, data);
-        }
+        // const data = await getLiveMatch(matchId);
+        // if (data && data.status) {
+        //   notifyRoomUsers(matchId, data);
+        // }
       } catch (error) {
         console.error(`Error updating live match ${matchId}:`, error);
       }
@@ -56,40 +56,40 @@ const updateLiveMatches = async () => {
 
 const getLiveMatch = async (matchId) => {
   try {
-    const data = await redisClient.get(matchId);
+    // const data = await redisClient.get(matchId);
 
-    const formData = new FormData();
-    formData.append("match_id", matchId);
+    // const formData = new FormData();
+    // formData.append("match_id", matchId);
 
-    const response = await axios.post(
-      `${API_URL}liveMatch${API_KEY}`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
+    // const response = await axios.post(
+    //   `${API_URL}liveMatch${API_KEY}`,
+    //   formData,
+    //   {
+    //     headers: {
+    //       ...formData.getHeaders(),
+    //       "Content-Type": "application/x-www-form-urlencoded",
+    //     },
+    //   }
+    // );
 
-    if (data) {
-      if (!response.data.status) {
-        console.log("Error in livematch fetching !");
-        return;
-      } else {
-        const oldData = JSON.parse(data);
-        if (JSON.stringify(oldData) !== JSON.stringify(response.data)) {
-          console.log("Live data changed, notifying clients");
-          await clearMatchCache(matchId);
-        }
-      }
-    }
+    // if (data) {
+    //   if (!response.data.status) {
+    //     console.log("Error in livematch fetching !");
+    //     return;
+    //   } else {
+    //     const oldData = JSON.parse(data);
+    //     if (JSON.stringify(oldData) !== JSON.stringify(response.data)) {
+    //       console.log("Live data changed, notifying clients");
+    //       await clearMatchCache(matchId);
+    //     }
+    //   }
+    // }
 
-    redisClient.set(`${matchId}`, JSON.stringify(response.data));
+    // redisClient.set(`${matchId}`, JSON.stringify(response.data));
 
-    console.log("Got live match data for match id", matchId);
+    // console.log("Got live match data for match id", matchId);
 
-    return response.data;
+    // return response.data;
   } catch (error) {
     console.log(error);
   }
