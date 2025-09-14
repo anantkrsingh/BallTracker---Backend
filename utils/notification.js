@@ -1,6 +1,7 @@
 const Bull = require("bull");
 const { default: axios } = require("axios");
 const pushTokens = require("../models/pushTokens");
+const redisClient = require("../redis");
 
 const notificationQueue = new Bull("notifications", {
   redis: {
@@ -10,6 +11,27 @@ const notificationQueue = new Bull("notifications", {
 
 function addNotification(title, message, type) {
   return notificationQueue.add({ title, message, type });
+}
+
+// Generate a unique cache key for each notification
+function generateNotificationCacheKey(title, message, type) {
+  const { createHash } = require("crypto");
+  const content = `${title}|${message}|${type}`;
+  return `notification:${createHash("md5").update(content).digest("hex")}`;
+}
+
+// Check if notification was already sent
+async function isNotificationAlreadySent(title, message, type) {
+  const cacheKey = generateNotificationCacheKey(title, message, type);
+  const cached = await redisClient.get(cacheKey);
+  return cached !== null;
+}
+
+// Mark notification as sent in cache
+async function markNotificationAsSent(title, message, type) {
+  const cacheKey = generateNotificationCacheKey(title, message, type);
+  // Cache for 1 hour (3600 seconds) to prevent duplicates
+  await redisClient.setEx(cacheKey, 3600, "sent");
 }
 
 let PUSH_TOKENS = [];
@@ -24,10 +46,17 @@ setInterval(async () => {
 }, 10000);
 
 async function sendNotification({ title, message, type }) {
+  // Check if notification was already sent
+  const alreadySent = await isNotificationAlreadySent(title, message, type);
+  if (alreadySent) {
+    console.log("🚫 Duplicate notification prevented:", title, message, type);
+    return;
+  }
+
   if (PUSH_TOKENS.length === 0) {
     await getPushTokens();
   }
-  console.log(title, message, type);
+  console.log("📤 Sending notification:", title, message, type);
   addNotification(title, message, type);
 }
 notificationQueue.process(async (job) => {
@@ -57,6 +86,9 @@ notificationQueue.process(async (job) => {
 
       const data = await response.data;
       console.log("📨 Sent notification batch:", data);
+      
+      // Mark notification as sent in cache after successful delivery
+      await markNotificationAsSent(title, message, type);
     } catch (error) {
       console.error("❌ Error sending notification:", error);
     }
