@@ -14,6 +14,7 @@ let API_URL = process.env.API_URL;
 let API_KEY = process.env.API_KEY;
 let wss;
 const liveLocks = new Map();
+const notificationCooldowns = new Map();
 
 let livematchMap = new Map();
 
@@ -45,6 +46,20 @@ async function safeRefreshLiveMatchData(matchId) {
   }
 }
 
+// Helper function to check notification cooldown
+function canSendNotification(matchId, notificationType, cooldownMs = 30000) {
+  const key = `${matchId}:${notificationType}`;
+  const lastSent = notificationCooldowns.get(key);
+  const now = Date.now();
+  
+  if (lastSent && (now - lastSent) < cooldownMs) {
+    return false;
+  }
+  
+  notificationCooldowns.set(key, now);
+  return true;
+}
+
 async function refreshLiveMatchData(matchId) {
   try {
     console.log("Refreshing live match data for match id", matchId);
@@ -70,7 +85,7 @@ async function refreshLiveMatchData(matchId) {
       const { series } = await Series.findOne({
         series_id: matchData.series_id,
       });
-      if (oldToss !== toss) {
+      if (oldToss !== toss && canSendNotification(matchId, "toss")) {
         sendNotification({
           title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Toss updated`,
           message: `${matchData.toss}`,
@@ -79,7 +94,8 @@ async function refreshLiveMatchData(matchId) {
       }
       if (
         matchData?.last36ball?.length > 0 &&
-        oldData.data?.last36ball?.length === 0
+        oldData.data?.last36ball?.length === 0 &&
+        canSendNotification(matchId, "match_start")
       ) {
         sendNotification({
           title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Match started`,
@@ -88,7 +104,7 @@ async function refreshLiveMatchData(matchId) {
         });
       }
 
-      if (matchData.current_inning !== oldData.data.current_inning) {
+      if (matchData.current_inning !== oldData.data.current_inning && canSendNotification(matchId, "inning_change")) {
         sendNotification({
           title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
           message: ` ${oldData.data.current_inning}st Innings Complete, Target${matchData.target}`,
@@ -96,7 +112,7 @@ async function refreshLiveMatchData(matchId) {
         });
       }
 
-      if (matchData.result !== oldData.data.result) {
+      if (matchData.result !== oldData.data.result && canSendNotification(matchId, "result")) {
         sendNotification({
           title: `${series} - ${matchData.team_a} vs ${matchData.team_b}`,
           message: ` ${matchData.result}`,
@@ -117,13 +133,14 @@ async function refreshLiveMatchData(matchId) {
             const oldRuns = Number(oldBatsman.run);
             const newRuns = Number(batsman.run);
             if (
-              (oldRuns < 50 && newRuns >= 50) ||
-              (oldRuns < 100 && newRuns >= 100)
+              ((oldRuns < 50 && newRuns >= 50) ||
+              (oldRuns < 100 && newRuns >= 100)) &&
+              canSendNotification(matchId, `milestone_${batsman.player_id}_${newRuns}`)
             ) {
               sendNotification({
                 title: `${series} - ${matchData.team_a} vs ${
                   matchData.team_b
-                } - ${newRuns === 50 ? "Half-Century" : "Century"}`,
+                } - ${newRuns >= 100 ? "Century" : "Half-Century"}`,
                 message: `${batsman.name} - ${newRuns} Runs, ${batsman.ball} Balls 🎉🏏`,
                 type: "score",
               });
@@ -135,7 +152,8 @@ async function refreshLiveMatchData(matchId) {
       if (
         JSON.stringify(matchData.lastwicket) !==
           JSON.stringify(oldData.data.lastwicket) &&
-        matchData.lastwicket.player
+        matchData.lastwicket.player &&
+        canSendNotification(matchId, `wicket_${matchData.lastwicket.player}`)
       ) {
         sendNotification({
           title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - Wicket!`,
@@ -148,7 +166,8 @@ async function refreshLiveMatchData(matchId) {
         if (
           Number(matchData.team_a_over) % 5 === 0 &&
           matchData.match_type === "T20" &&
-          oldData.data.team_a_over !== matchData.team_a_over
+          oldData.data.team_a_over !== matchData.team_a_over &&
+          canSendNotification(matchId, `over_${matchData.team_a_over}_a`)
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
@@ -159,7 +178,8 @@ async function refreshLiveMatchData(matchId) {
         if (
           Number(matchData.team_a_over) % 10 === 0 &&
           matchData.match_type != "T20" &&
-          oldData.data.team_a_over !== matchData.team_a_over
+          oldData.data.team_a_over !== matchData.team_a_over &&
+          canSendNotification(matchId, `over_${matchData.team_a_over}_a`)
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_a_over} Over Complete`,
@@ -171,7 +191,8 @@ async function refreshLiveMatchData(matchId) {
         if (
           Number(matchData.team_b_over) % 5 === 0 &&
           matchData.match_type === "T20" &&
-          oldData.data.team_b_over !== matchData.team_b_over
+          oldData.data.team_b_over !== matchData.team_b_over &&
+          canSendNotification(matchId, `over_${matchData.team_b_over}_b`)
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,
@@ -182,7 +203,8 @@ async function refreshLiveMatchData(matchId) {
         if (
           Number(matchData.team_b_over) % 10 === 0 &&
           matchData.match_type != "T20" &&
-          oldData.data.team_b_over !== matchData.team_b_over
+          oldData.data.team_b_over !== matchData.team_b_over &&
+          canSendNotification(matchId, `over_${matchData.team_b_over}_b`)
         ) {
           sendNotification({
             title: `${series} - ${matchData.team_a} vs ${matchData.team_b} - ${matchData.team_b_over} Over Complete`,

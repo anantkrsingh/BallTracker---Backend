@@ -53,6 +53,9 @@ async function sendNotification({ title, message, type }) {
     return;
   }
 
+  // Mark as sent immediately to prevent race conditions
+  await markNotificationAsSent(title, message, type);
+
   if (PUSH_TOKENS.length === 0) {
     await getPushTokens();
   }
@@ -86,9 +89,6 @@ notificationQueue.process(async (job) => {
 
       const data = await response.data;
       console.log("📨 Sent notification batch:", data);
-      
-      // Mark notification as sent in cache after successful delivery
-      await markNotificationAsSent(title, message, type);
     } catch (error) {
       console.error("❌ Error sending notification:", error);
     }
