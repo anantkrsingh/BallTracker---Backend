@@ -8,7 +8,7 @@ const tokenSchema = new mongoose.Schema(
     },
     toss: { type: Boolean, default: true },
     wicket: { type: Boolean, default: false },
-    news: { type: Boolean, default: true },
+    news: { type: Boolean, default: false },
     match: { type: Boolean, default: true },
     score: { type: Boolean, default: true },
     stats: { type: Boolean, default: true },
